@@ -1,4 +1,4 @@
-# ProcessCanvas
+# Development Process Navigator
 
 An educational web application where instructors author an activity-to-phase alignment exercise
 (real-estate-development domain) and students complete a drag-and-drop sorting exercise with
