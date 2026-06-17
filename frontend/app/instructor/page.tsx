@@ -25,7 +25,7 @@ async function authed(path: string, method = "GET", body?: unknown) {
 type Tab = "author" | "submissions" | "config";
 
 export default function InstructorPage() {
-  useRoleGuard("INSTRUCTOR");
+  const allowed = useRoleGuard("INSTRUCTOR");
   const [tab, setTab] = useState<Tab>("author");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateId, setTemplateId] = useState("");
@@ -52,6 +52,8 @@ export default function InstructorPage() {
       setErr(e.message);
     }
   }
+
+  if (!allowed) return null;
 
   return (
     <div>

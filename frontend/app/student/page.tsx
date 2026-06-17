@@ -9,7 +9,7 @@ import { useRoleGuard } from "../../src/shared/useRoleGuard";
 type Tab = "exercise" | "results";
 
 export default function StudentPage() {
-  useRoleGuard("STUDENT");
+  const allowed = useRoleGuard("STUDENT");
   const [tab, setTab] = useState<Tab>("exercise");
   const [exerciseId, setExerciseId] = useState("");
   const [exercise, setExercise] = useState<ExerciseView | null>(null);
@@ -25,6 +25,8 @@ export default function StudentPage() {
       setErr(e.message);
     }
   }
+
+  if (!allowed) return null;
 
   return (
     <div>
