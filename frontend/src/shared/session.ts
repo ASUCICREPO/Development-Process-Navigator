@@ -21,7 +21,21 @@ export function clearSession() {
 }
 
 export function getToken(): string | null {
-  return typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
+  if (typeof window === "undefined") return null;
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  // Check expiry from JWT payload (exp is in seconds)
+  try {
+    const part = token.split(".")[1];
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+    const { exp } = JSON.parse(decodeURIComponent(escape(atob(b64 + pad))));
+    if (exp && Date.now() / 1000 > exp) {
+      clearSession(); // wipe expired token
+      return null;
+    }
+  } catch {}
+  return token;
 }
 export function getRole(): string | null {
   return typeof window === "undefined" ? null : localStorage.getItem(ROLE_KEY);

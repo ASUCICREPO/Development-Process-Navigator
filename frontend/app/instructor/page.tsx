@@ -7,7 +7,7 @@ interface Template { templateId: string; source: string; name: string; }
 
 async function authed(path: string, method = "GET", body?: unknown) {
   const token = getToken();
-  if (!token) throw new Error("Not logged in. Please log in first.");
+  if (!token) throw new Error("Session expired. Please log in again.");
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
