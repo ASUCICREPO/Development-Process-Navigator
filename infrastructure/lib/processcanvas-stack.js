@@ -217,6 +217,34 @@ class ProcessCanvasStack extends aws_cdk_lib_1.Stack {
             authorizer,
             authorizationType: apigw.AuthorizationType.COGNITO,
         });
+        // Inject CORS headers on authorizer rejections so the browser sees a proper
+        // auth error instead of a misleading CORS error.
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": "'*'",
+            "Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        };
+        new apigw.GatewayResponse(this, "GwRespUnauthorized", {
+            restApi,
+            type: apigw.ResponseType.UNAUTHORIZED,
+            statusCode: "401",
+            responseHeaders: corsHeaders,
+        });
+        new apigw.GatewayResponse(this, "GwRespAccessDenied", {
+            restApi,
+            type: apigw.ResponseType.ACCESS_DENIED,
+            statusCode: "403",
+            responseHeaders: corsHeaders,
+        });
+        new apigw.GatewayResponse(this, "GwRespDefault4xx", {
+            restApi,
+            type: apigw.ResponseType.DEFAULT_4XX,
+            responseHeaders: corsHeaders,
+        });
+        new apigw.GatewayResponse(this, "GwRespDefault5xx", {
+            restApi,
+            type: apigw.ResponseType.DEFAULT_5XX,
+            responseHeaders: corsHeaders,
+        });
         // -------------------------------------------------------------------------
         // WebSocket API Gateway (live session)
         // -------------------------------------------------------------------------
@@ -240,7 +268,8 @@ class ProcessCanvasStack extends aws_cdk_lib_1.Stack {
         }));
         wsFn.addEnvironment("WS_ENDPOINT", wsStage.callbackUrl);
         // -------------------------------------------------------------------------
-        // Amplify Hosting — Next.js frontend
+        // Amplify Hosting — Next.js static frontend
+        // Deploys automatically on push to main via GitHub source connection.
         // -------------------------------------------------------------------------
         const amplifyRole = new iam.Role(this, "AmplifyRole", {
             assumedBy: new iam.ServicePrincipal("amplify.amazonaws.com"),
@@ -248,12 +277,6 @@ class ProcessCanvasStack extends aws_cdk_lib_1.Stack {
         const amplifyApp = new amplify.App(this, "FrontendApp", {
             appName: "ProcessCanvas",
             role: amplifyRole,
-            // GitHub source — token stored in Secrets Manager at amplify/github-token
-            sourceCodeProvider: new amplify.GitHubSourceCodeProvider({
-                owner: "ASUCICREPO",
-                repository: "Development-Process-Navigator",
-                oauthToken: aws_cdk_lib_1.SecretValue.secretsManager("amplify/github-token"),
-            }),
             buildSpec: codebuild.BuildSpec.fromObjectToYaml({
                 version: 1,
                 frontend: {
@@ -274,7 +297,7 @@ class ProcessCanvasStack extends aws_cdk_lib_1.Stack {
             },
         });
         const mainBranch = amplifyApp.addBranch("main", {
-            autoBuild: true, // trigger deploy on every push to main
+            autoBuild: true, // deploy on every push to main
             stage: "PRODUCTION",
         });
         // -------------------------------------------------------------------------

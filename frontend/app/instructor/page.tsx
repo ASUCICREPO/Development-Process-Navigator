@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE, getToken } from "../../src/shared/session";
 import { SubmissionsDashboard } from "../../src/instructor/SubmissionsDashboard";
+import { CsvConfigEditor } from "../../src/instructor/CsvConfigEditor";
 
 interface Template { templateId: string; source: string; name: string; }
 
@@ -20,7 +21,7 @@ async function authed(path: string, method = "GET", body?: unknown) {
   return res.json();
 }
 
-type Tab = "author" | "submissions";
+type Tab = "author" | "submissions" | "config";
 
 export default function InstructorPage() {
   const [tab, setTab] = useState<Tab>("author");
@@ -75,6 +76,16 @@ export default function InstructorPage() {
         >
           Submissions
         </button>
+        <button
+          data-testid="tab-config"
+          onClick={() => setTab("config")}
+          style={{
+            background: tab === "config" ? "#1565c0" : "#e0e0e0",
+            color: tab === "config" ? "#fff" : "#333",
+          }}
+        >
+          Configure Exercise
+        </button>
       </div>
 
       {tab === "author" && (
@@ -124,6 +135,8 @@ export default function InstructorPage() {
           <SubmissionsDashboard />
         </div>
       )}
+
+      {tab === "config" && <CsvConfigEditor />}
     </div>
   );
 }

@@ -43,6 +43,10 @@ export class ApiClient {
   // Authoring
   listTemplates = () => this.request("GET", `/templates`);
   listExercises = () => this.request("GET", `/exercises`);
+  createConfiguration = (name: string) =>
+    this.request("POST", `/configurations`, { name });
+  updateConfiguration = (configId: string, payload: unknown) =>
+    this.request("PUT", `/configurations/${configId}`, payload);
   applyConfiguration = (configId: string) =>
     this.request("POST", `/configurations/${configId}/apply`);
 
