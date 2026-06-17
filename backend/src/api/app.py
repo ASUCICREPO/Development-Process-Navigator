@@ -256,7 +256,8 @@ def update_configuration(principal: Principal, config_id: str, body: dict) -> di
             snap[key] = body[key]
     _t("Configurations").update_item(
         Key={"configId": config_id},
-        UpdateExpression="SET snapshot = :s",
+        UpdateExpression="SET #snap = :s",
+        ExpressionAttributeNames={"#snap": "snapshot"},
         ExpressionAttributeValues={":s": json.dumps(snap)})
     return {"configId": config_id, "snapshot": snap}
 
