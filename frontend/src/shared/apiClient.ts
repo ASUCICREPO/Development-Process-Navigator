@@ -11,6 +11,7 @@ export class ApiClient {
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = this.opts.getToken();
+    if (!token) throw new Error("Not logged in. Please log in first.");
     const res = await fetch(`${this.opts.baseUrl}${path}`, {
       method,
       headers: {

@@ -6,15 +6,17 @@ import { SubmissionsDashboard } from "../../src/instructor/SubmissionsDashboard"
 interface Template { templateId: string; source: string; name: string; }
 
 async function authed(path: string, method = "GET", body?: unknown) {
+  const token = getToken();
+  if (!token) throw new Error("Not logged in. Please log in first.");
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken() ?? ""}`,
+      Authorization: `Bearer ${token}`,
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error((await res.json()).error || `Request failed: ${res.status}`);
+  if (!res.ok) throw new Error((await res.json().catch(() => ({error: `HTTP ${res.status}`}))).error || `Request failed: ${res.status}`);
   return res.json();
 }
 

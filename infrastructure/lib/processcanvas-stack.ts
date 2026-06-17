@@ -209,6 +209,35 @@ export class ProcessCanvasStack extends Stack {
       authorizationType: apigw.AuthorizationType.COGNITO,
     });
 
+    // Inject CORS headers on authorizer rejections so the browser sees a proper
+    // auth error instead of a misleading CORS error.
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "'*'",
+      "Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+    };
+    new apigw.GatewayResponse(this, "GwRespUnauthorized", {
+      restApi,
+      type: apigw.ResponseType.UNAUTHORIZED,
+      statusCode: "401",
+      responseHeaders: corsHeaders,
+    });
+    new apigw.GatewayResponse(this, "GwRespAccessDenied", {
+      restApi,
+      type: apigw.ResponseType.ACCESS_DENIED,
+      statusCode: "403",
+      responseHeaders: corsHeaders,
+    });
+    new apigw.GatewayResponse(this, "GwRespDefault4xx", {
+      restApi,
+      type: apigw.ResponseType.DEFAULT_4XX,
+      responseHeaders: corsHeaders,
+    });
+    new apigw.GatewayResponse(this, "GwRespDefault5xx", {
+      restApi,
+      type: apigw.ResponseType.DEFAULT_5XX,
+      responseHeaders: corsHeaders,
+    });
+
     // -------------------------------------------------------------------------
     // WebSocket API Gateway (live session)
     // -------------------------------------------------------------------------
