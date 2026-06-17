@@ -1,5 +1,6 @@
 import "./globals.css";
 import React from "react";
+import { NavBar } from "../src/shared/NavBar";
 
 export const metadata = {
   title: "ProcessCanvas",
@@ -10,11 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <nav>
-          <a href="/">ProcessCanvas</a>
-          <a href="/instructor/">Instructor</a>
-          <a href="/student/">Student</a>
-        </nav>
+        <NavBar />
         <div className="container">{children}</div>
       </body>
     </html>

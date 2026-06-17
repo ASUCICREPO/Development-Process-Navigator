@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { API_BASE, getToken } from "../../src/shared/session";
 import { SubmissionsDashboard } from "../../src/instructor/SubmissionsDashboard";
 import { CsvConfigEditor } from "../../src/instructor/CsvConfigEditor";
+import { useRoleGuard } from "../../src/shared/useRoleGuard";
 
 interface Template { templateId: string; source: string; name: string; }
 
@@ -24,6 +25,7 @@ async function authed(path: string, method = "GET", body?: unknown) {
 type Tab = "author" | "submissions" | "config";
 
 export default function InstructorPage() {
+  useRoleGuard("INSTRUCTOR");
   const [tab, setTab] = useState<Tab>("author");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templateId, setTemplateId] = useState("");
