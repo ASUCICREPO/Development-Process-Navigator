@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { register, login, setSession, getRole, getToken, clearSession } from "../src/shared/session";
+import { register, login, setSession, getRole, clearSession } from "../src/shared/session";
 
 function decodeJwt(token: string): any {
   const part = token.split(".")[1];
@@ -13,7 +13,7 @@ type Mode = "login" | "register";
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("login");
-  const [role, setRole] = useState<"INSTRUCTOR" | "STUDENT">("INSTRUCTOR");
+  const [role, setRole] = useState<"INSTRUCTOR" | "STUDENT">("STUDENT");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
