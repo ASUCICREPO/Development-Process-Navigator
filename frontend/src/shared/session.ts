@@ -1,9 +1,10 @@
 // Client-side session + API client factory. Auth uses our public /auth endpoints (JWT in localStorage).
 import { ApiClient } from "./apiClient";
 
-export const API_BASE =
+export const API_BASE = (
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://51419m3ko9.execute-api.us-east-1.amazonaws.com/prod";
+  "https://51419m3ko9.execute-api.us-east-1.amazonaws.com/prod"
+).replace(/\/$/, "");
 
 const TOKEN_KEY = "pc_idToken";
 const ROLE_KEY = "pc_role";

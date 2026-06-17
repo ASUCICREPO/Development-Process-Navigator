@@ -436,8 +436,6 @@ def _history_row(a: dict, full: bool = False) -> dict:
         row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
         row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
     return row
-    if full:
-        row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
         row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
     return row
 
