@@ -41,10 +41,12 @@ export class ApiClient {
 
   // Authoring
   listTemplates = () => this.request("GET", `/templates`);
+  listExercises = () => this.request("GET", `/exercises`);
   applyConfiguration = (configId: string) =>
     this.request("POST", `/configurations/${configId}/apply`);
 
   // Results
+  getAttempt = (attemptId: string) => this.request("GET", `/attempts/${attemptId}`);
   getHistory = (studentId: string) => this.request("GET", `/students/${studentId}/history`);
   getClassResults = (exerciseId: string) => this.request("GET", `/exercises/${exerciseId}/results`);
 

@@ -17,6 +17,7 @@ ROUTES = {
     ("POST", "/join-codes"): "identity.create_join_code",
     ("POST", "/roster"): "identity.add_to_roster",
 
+    ("GET", "/exercises"): "authoring.list_exercises",
     ("GET", "/templates"): "authoring.list_templates",
     ("POST", "/configurations"): "authoring.create_from_template",
     ("PUT", "/configurations/{id}"): "authoring.update",

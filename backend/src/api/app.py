@@ -30,7 +30,8 @@ USER_POOL_CLIENT_ID = os.environ.get("USER_POOL_CLIENT_ID", "")
 
 
 def _t(name: str):
-    return _ddb.Table(name)
+    # CDK injects TABLE_<NAME> env vars when deploying; fall back to bare name for local/test.
+    return _ddb.Table(os.environ.get(f"TABLE_{name.upper()}", name))
 
 
 def _now() -> str:
@@ -401,6 +402,14 @@ def save_reflection(principal: Principal, attempt_id: str, body: dict) -> dict:
     raise NotFoundError("Attempt not found.")
 
 
+def list_exercises(principal: Principal) -> dict:
+    _require_role(principal, Role.INSTRUCTOR)
+    resp = _t("Exercises").scan()
+    items = [e for e in resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+    return {"exercises": [{"exerciseId": e["exerciseId"], "configId": e.get("configId", ""),
+                           "status": e.get("status", "Active")} for e in items]}
+
+
 def class_results(principal: Principal, exercise_id: str) -> dict:
     _require_role(principal, Role.INSTRUCTOR)
     ex = _exercise_record(exercise_id)
@@ -409,17 +418,24 @@ def class_results(principal: Principal, exercise_id: str) -> dict:
     resp = _t("Attempts").query(
         IndexName="byExercise",
         KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(exercise_id))
-    finals = [a for a in resp.get("Items", []) if a.get("isFinal")]
+    finals = [a for a in resp.get("Items", []) if a.get("isFinal") in (True, 1)]
     return {"results": [_history_row(a) for a in finals]}
 
 
 def _history_row(a: dict, full: bool = False) -> dict:
     row = {
         "attemptId": a["attemptId"], "exerciseId": a["exerciseId"],
-        "attemptNumber": int(a.get("attemptNumber", 1)), "isFinal": a.get("isFinal", False),
-        "scorePercent": int(a.get("scorePercent", 0)), "studentId": a["studentId"],
-        "reflectionResponse": a.get("reflectionResponse"), "createdAt": a.get("createdAt"),
+        "attemptNumber": int(a.get("attemptNumber") or 1),
+        "isFinal": bool(a.get("isFinal")),
+        "scorePercent": int(a.get("scorePercent") or 0),
+        "studentId": a["studentId"],
+        "reflectionResponse": a.get("reflectionResponse"),
+        "createdAt": a.get("createdAt"),
     }
+    if full:
+        row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
+        row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
+    return row
     if full:
         row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
         row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
@@ -452,6 +468,8 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
     if method == "GET" and seg == ["me"]:
         return 200, {"userId": principal.user_id, "role": principal.role.value}
 
+    if method == "GET" and seg == ["exercises"]:
+        return 200, list_exercises(principal)
     if method == "GET" and seg == ["templates"]:
         return 200, list_templates(principal)
     if method == "POST" and seg == ["configurations"]:
