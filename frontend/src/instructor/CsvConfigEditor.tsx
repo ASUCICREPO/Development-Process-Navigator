@@ -189,13 +189,10 @@ export const CsvConfigEditor: React.FC = () => {
                 <td style={cellStyle}><textarea style={{ ...inputStyle, minHeight: 56 }} value={row.rationale} onChange={(e) => updateRow(row.id, "rationale", e.target.value)} /></td>
                 <td style={{ ...cellStyle, textAlign: "center", verticalAlign: "middle" }}>
                   <button
+                    className="btn-danger"
                     onClick={() => removeRow(row.id)}
                     title="Delete row"
-                    style={{
-                      background: "#c62828", color: "#fff", border: "none",
-                      borderRadius: 4, padding: "4px 10px", cursor: "pointer",
-                      fontSize: 13, fontWeight: 700, lineHeight: 1,
-                    }}
+                    style={{ padding: "5px 12px", fontSize: 12, fontWeight: 700, minWidth: 70 }}
                   >
                     🗑 Delete
                   </button>
