@@ -164,7 +164,7 @@ export const CsvConfigEditor: React.FC = () => {
               <th style={{ ...cellStyle, minWidth: 80 }}>Operations Score</th>
               <th style={{ ...cellStyle, minWidth: 180 }}>Description</th>
               <th style={{ ...cellStyle, minWidth: 200 }}>Instructor Rationale</th>
-              <th style={{ ...cellStyle }}></th>
+              <th style={{ ...cellStyle, textAlign: "center" }}>Delete</th>
             </tr>
           </thead>
           <tbody>
@@ -187,8 +187,18 @@ export const CsvConfigEditor: React.FC = () => {
                 <td style={cellStyle}><input style={scoreStyle} value={row.operations} onChange={(e) => updateRow(row.id, "operations", e.target.value)} /></td>
                 <td style={cellStyle}><textarea style={{ ...inputStyle, minHeight: 56 }} value={row.description} onChange={(e) => updateRow(row.id, "description", e.target.value)} /></td>
                 <td style={cellStyle}><textarea style={{ ...inputStyle, minHeight: 56 }} value={row.rationale} onChange={(e) => updateRow(row.id, "rationale", e.target.value)} /></td>
-                <td style={cellStyle}>
-                  <button onClick={() => removeRow(row.id)} style={{ background: "#c62828", color: "#fff", border: "none", borderRadius: 4, padding: "2px 8px", cursor: "pointer", fontSize: 11 }}>✕</button>
+                <td style={{ ...cellStyle, textAlign: "center", verticalAlign: "middle" }}>
+                  <button
+                    onClick={() => removeRow(row.id)}
+                    title="Delete row"
+                    style={{
+                      background: "#c62828", color: "#fff", border: "none",
+                      borderRadius: 4, padding: "4px 10px", cursor: "pointer",
+                      fontSize: 13, fontWeight: 700, lineHeight: 1,
+                    }}
+                  >
+                    🗑 Delete
+                  </button>
                 </td>
               </tr>
             ))}
