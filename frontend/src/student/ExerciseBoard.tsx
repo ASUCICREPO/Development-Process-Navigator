@@ -259,7 +259,7 @@ export const ExerciseBoard: React.FC<Props> = ({ api, exercise }) => {
                   <span style={styles.phaseTitle}>{phase}</span>
                   <span style={styles.phaseIcon}>⊕</span>
                 </div>
-                <div style={styles.phaseBody}>
+                <div style={{ ...styles.phaseBody, background: `${color}08` }}>
                   {activitiesInPhase.length === 0 && (
                     <p style={styles.dropHint}>Drop here</p>
                   )}

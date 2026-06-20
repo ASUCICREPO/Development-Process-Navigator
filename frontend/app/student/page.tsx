@@ -134,76 +134,79 @@ export default function StudentDashboard() {
           </button>
         </div>
 
-        {/* Stats Row */}
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-value">{personalBest}%</div>
-            <div className="stat-label">Personal Best</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{completedCount}</div>
-            <div className="stat-label">Completed</div>
-          </div>
-        </div>
-
         {/* Main Dashboard Grid */}
         <div className="dashboard-grid">
-          {/* Exercises List */}
-          <div className="exercises-card">
-            <h3>My Exercises</h3>
-            {loading ? (
-              <p style={{ color: "var(--gray-500)", fontSize: 14 }}>Loading exercises...</p>
-            ) : exercises.length === 0 ? (
-              <p style={{ color: "var(--gray-500)", fontSize: 14 }}>
-                No exercises assigned yet. Ask your instructor for a join code or exercise ID.
-              </p>
-            ) : (
-              exercises.map((ex) => (
-                <div key={ex.exerciseId} className="exercise-item">
-                  <div className={`exercise-dot ${ex.status}`} />
-                  <div className="exercise-info">
-                    <div className="exercise-title">{ex.title}</div>
-                    <div className="exercise-meta">
-                      {ex.instructor}{ex.dueDate ? ` · ${formatDueDate(ex.dueDate)}` : ""}
-                    </div>
-                    {ex.status === "in-progress" && (
-                      <div className="exercise-progress-bar">
-                        <div className="fill" style={{ width: `${ex.progress}%` }} />
+          {/* Left column: Stats + Exercises */}
+          <div>
+            {/* Stats Row */}
+            <div className="stats-row">
+              <div className="stat-card">
+                <div className="stat-value">{personalBest}%</div>
+                <div className="stat-label">Personal Best</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{completedCount}</div>
+                <div className="stat-label">Completed</div>
+              </div>
+            </div>
+
+            {/* Exercises List */}
+            <div className="exercises-card">
+              <h3>My Exercises</h3>
+              {loading ? (
+                <p style={{ color: "var(--gray-500)", fontSize: 14 }}>Loading exercises...</p>
+              ) : exercises.length === 0 ? (
+                <p style={{ color: "var(--gray-500)", fontSize: 14 }}>
+                  No exercises assigned yet. Ask your instructor for a join code or exercise ID.
+                </p>
+              ) : (
+                exercises.map((ex) => (
+                  <div key={ex.exerciseId} className="exercise-item">
+                    <div className={`exercise-dot ${ex.status}`} />
+                    <div className="exercise-info">
+                      <div className="exercise-title">{ex.title}</div>
+                      <div className="exercise-meta">
+                        {ex.instructor}{ex.dueDate ? ` · ${formatDueDate(ex.dueDate)}` : ""}
                       </div>
-                    )}
+                      {ex.status === "in-progress" && (
+                        <div className="exercise-progress-bar">
+                          <div className="fill" style={{ width: `${ex.progress}%` }} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="exercise-actions">
+                      {ex.scorePercent != null && (
+                        <span className="exercise-score">{ex.scorePercent}%</span>
+                      )}
+                      {ex.status === "in-progress" && (
+                        <button
+                          className="btn-continue"
+                          onClick={() => window.location.href = `/student/exercise?id=${ex.exerciseId}`}
+                        >
+                          Continue
+                        </button>
+                      )}
+                      {ex.status === "not-started" && (
+                        <button
+                          className="btn-start"
+                          onClick={() => window.location.href = `/student/exercise?id=${ex.exerciseId}`}
+                        >
+                          Start
+                        </button>
+                      )}
+                      {ex.status === "completed" && (
+                        <button
+                          className="btn-review"
+                          onClick={() => window.location.href = `/student/history?id=${ex.exerciseId}`}
+                        >
+                          Review
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="exercise-actions">
-                    {ex.scorePercent != null && (
-                      <span className="exercise-score">{ex.scorePercent}%</span>
-                    )}
-                    {ex.status === "in-progress" && (
-                      <button
-                        className="btn-continue"
-                        onClick={() => window.location.href = `/student/exercise?id=${ex.exerciseId}`}
-                      >
-                        Continue
-                      </button>
-                    )}
-                    {ex.status === "not-started" && (
-                      <button
-                        className="btn-start"
-                        onClick={() => window.location.href = `/student/exercise?id=${ex.exerciseId}`}
-                      >
-                        Start
-                      </button>
-                    )}
-                    {ex.status === "completed" && (
-                      <button
-                        className="btn-review"
-                        onClick={() => window.location.href = `/student/history?id=${ex.exerciseId}`}
-                      >
-                        Review
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
 
           {/* Recent Scores */}

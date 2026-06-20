@@ -218,7 +218,7 @@ body {
   padding-right: 32px;
   padding-bottom: 24px;
   min-height: 100vh;
-  transition: margin-left 0.2s;
+  width: calc(100% - var(--sidebar-width));
 }
 
 .main-content.sidebar-collapsed {
@@ -301,8 +301,9 @@ body {
 /* Dashboard Grid */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 280px;
   gap: 24px;
+  align-items: start;
 }
 
 /* Exercises List */
