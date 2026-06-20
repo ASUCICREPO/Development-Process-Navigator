@@ -43,6 +43,16 @@ export default function HistoryPage() {
             const res: any = await client.getHistory(studentId);
             const attempts: AttemptRow[] = res.attempts ?? [];
 
+            // Fetch exercise list for friendly titles
+            let exerciseTitles: Record<string, string> = {};
+            try {
+                const exRes: any = await client.listExercises();
+                const exList = exRes.exercises ?? exRes ?? [];
+                for (const ex of exList) {
+                    exerciseTitles[ex.exerciseId] = ex.title || ex.name || ex.exerciseId;
+                }
+            } catch { }
+
             // Group by exercise
             const byExercise: Record<string, AttemptRow[]> = {};
             for (const a of attempts) {
@@ -60,7 +70,7 @@ export default function HistoryPage() {
 
                 return {
                     exerciseId: exId,
-                    title: rows[0]?.exerciseTitle || `Exercise ${exId.slice(0, 12)}`,
+                    title: exerciseTitles[exId] || rows[0]?.exerciseTitle || exId,
                     date: latestDate
                         ? new Date(latestDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                         : "",
@@ -144,7 +154,10 @@ export default function HistoryPage() {
                                     {/* Details button */}
                                     <button
                                         style={styles.detailsBtn}
-                                        onClick={() => setExpandedId(expandedId === group.exerciseId ? null : group.exerciseId)}
+                                        onClick={() => {
+                                            const finalAttempt = group.attempts.find((a) => a.isFinal) ?? group.attempts[group.attempts.length - 1];
+                                            window.location.href = `/student/history/detail?attemptId=${finalAttempt.attemptId}&title=${encodeURIComponent(group.title)}`;
+                                        }}
                                     >
                                         Details
                                     </button>

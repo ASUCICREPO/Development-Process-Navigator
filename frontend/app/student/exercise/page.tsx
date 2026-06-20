@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../../src/shared/session";
 import { ExerciseBoard } from "../../../src/student/ExerciseBoard";
+import { Sidebar } from "../../../src/shared/Sidebar";
 import { ExerciseView } from "../../../src/shared/types";
 import { useRoleGuard } from "../../../src/shared/useRoleGuard";
 
@@ -39,55 +40,7 @@ export default function ExercisePage() {
 
     if (!allowed) return null;
 
-    // Exercise loaded but not yet started — show intro card
-    if (exercise && !started) {
-        return (
-            <div style={{ paddingTop: 80 }}>
-                <div style={styles.introWrapper}>
-                    <div style={styles.introCard}>
-                        <span style={styles.badge}>Standard Scenario</span>
-                        <h1 style={styles.title}>
-                            {exercise.exerciseId}
-                        </h1>
-                        <p style={styles.description}>
-                            In this exercise you will sequence the roles, tasks, and analytical tests involved
-                            in developing a commercial project. Drag each activity card into the
-                            phase where it typically occurs. A card may appear in more than one phase.
-                        </p>
-
-                        <div style={styles.statsRow}>
-                            <div style={styles.statBox}>
-                                <div style={styles.statNumber}>{exercise.activities.length}</div>
-                                <div style={styles.statLabel}>Activity Cards</div>
-                            </div>
-                            <div style={styles.statBox}>
-                                <div style={styles.statNumber}>{exercise.phases.length}</div>
-                                <div style={styles.statLabel}>Phases</div>
-                            </div>
-                        </div>
-
-                        <p style={styles.metaText}>Assigned by Instructor</p>
-                        <p style={styles.dueDate}>Due: TBD</p>
-
-                        <button
-                            style={styles.beginBtn}
-                            onClick={() => setStarted(true)}
-                        >
-                            Begin Exercise
-                        </button>
-                        <a
-                            href="/student/"
-                            style={styles.saveLink}
-                        >
-                            Save for later
-                        </a>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Exercise started — show the board
+    // Exercise started — full screen board (no sidebar)
     if (exercise && started) {
         return (
             <div style={{ marginTop: 56 }}>
@@ -96,34 +49,84 @@ export default function ExercisePage() {
         );
     }
 
-    // No exercise loaded — show ID input
-    return (
-        <div style={{ paddingTop: 80 }}>
-            <div style={styles.introWrapper}>
-                <div style={styles.introCard}>
-                    <h1 style={{ ...styles.title, fontSize: 20 }}>Load an Exercise</h1>
-                    <p style={styles.description}>
-                        Enter the Exercise ID provided by your instructor to begin.
-                    </p>
-                    <div style={{ marginTop: 16 }}>
-                        <input
-                            data-testid="exercise-id-input"
-                            value={exerciseId}
-                            onChange={(e) => setExerciseId(e.target.value)}
-                            placeholder="Enter exercise ID..."
-                            style={styles.input}
-                        />
+    // Exercise loaded but not yet started — intro card with sidebar
+    if (exercise && !started) {
+        return (
+            <div style={{ display: "flex" }}>
+                <Sidebar activeItem="exercise" />
+                <main className="main-content">
+                    <div style={styles.introWrapper}>
+                        <div style={styles.introCard}>
+                            <span style={styles.badge}>Standard Scenario</span>
+                            <h1 style={styles.title}>{exercise.exerciseId}</h1>
+                            <p style={styles.description}>
+                                In this exercise you will sequence the roles, tasks, and analytical tests involved
+                                in developing a commercial project. Drag each activity card into the
+                                phase where it typically occurs. A card may appear in more than one phase.
+                            </p>
+
+                            <div style={styles.statsRow}>
+                                <div style={styles.statBox}>
+                                    <div style={styles.statNumber}>{exercise.activities.length}</div>
+                                    <div style={styles.statLabel}>Activity Cards</div>
+                                </div>
+                                <div style={styles.statBox}>
+                                    <div style={styles.statNumber}>{exercise.phases.length}</div>
+                                    <div style={styles.statLabel}>Phases</div>
+                                </div>
+                            </div>
+
+                            <p style={styles.metaText}>Assigned by Instructor</p>
+                            <p style={styles.dueDate}>Due: TBD</p>
+
+                            <button style={styles.beginBtn} onClick={() => setStarted(true)}>
+                                Begin Exercise
+                            </button>
+                            <a href="/student/" style={styles.saveLink}>
+                                Save for later
+                            </a>
+                        </div>
                     </div>
-                    {err && <p style={{ color: "#ef4444", marginTop: 8, fontSize: 14 }}>{err}</p>}
-                    <button
-                        style={styles.beginBtn}
-                        onClick={() => loadExercise()}
-                        disabled={!exerciseId || loading}
-                    >
-                        {loading ? "Loading..." : "Load Exercise"}
-                    </button>
-                </div>
+                </main>
             </div>
+        );
+    }
+
+    // No exercise loaded — show ID input with sidebar
+    return (
+        <div style={{ display: "flex" }}>
+            <Sidebar activeItem="exercise" />
+            <main className="main-content">
+                <div style={styles.introWrapper}>
+                    <div style={styles.introCard}>
+                        <h1 style={{ ...styles.title, fontSize: 20 }}>Load an Exercise</h1>
+                        <p style={styles.description}>
+                            Enter the Exercise ID provided by your instructor to begin.
+                        </p>
+                        <div style={{ marginTop: 16 }}>
+                            <input
+                                data-testid="exercise-id-input"
+                                value={exerciseId}
+                                onChange={(e) => setExerciseId(e.target.value)}
+                                placeholder="Enter exercise ID..."
+                                style={styles.input}
+                            />
+                        </div>
+                        {err && <p style={{ color: "#ef4444", marginTop: 8, fontSize: 14 }}>{err}</p>}
+                        <button
+                            style={{
+                                ...styles.beginBtn,
+                                opacity: !exerciseId || loading ? 0.5 : 1,
+                                cursor: !exerciseId || loading ? "not-allowed" : "pointer",
+                            }}
+                            onClick={() => loadExercise()}
+                            disabled={!exerciseId || loading}
+                        >
+                            {loading ? "Loading..." : "Load Exercise"}
+                        </button>
+                    </div>
+                </div>
+            </main>
         </div>
     );
 }
@@ -133,7 +136,7 @@ const styles: Record<string, React.CSSProperties> = {
         display: "flex",
         justifyContent: "center",
         alignItems: "flex-start",
-        minHeight: "calc(100vh - 120px)",
+        minHeight: "calc(100vh - 160px)",
         padding: "40px 24px",
     },
     introCard: {
@@ -143,7 +146,7 @@ const styles: Record<string, React.CSSProperties> = {
         padding: "40px 48px",
         maxWidth: 540,
         width: "100%",
-        textAlign: "center",
+        textAlign: "center" as const,
         boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
     },
     badge: {
