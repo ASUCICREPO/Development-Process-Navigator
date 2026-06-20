@@ -57,10 +57,10 @@ export default function Home() {
   }
 
   return (
-    <div style={{ maxWidth: 480, margin: "60px auto", padding: "0 16px" }}>
-      <h1 style={{ marginBottom: 4 }}>Welcome to ProcessCanvas</h1>
-      <p style={{ color: "#555", marginBottom: 24 }}>
-        Sort real-estate-development activities into the right process phases.
+    <div className="login-container">
+      <h1 style={{ marginBottom: 4 }}>Development Process Navigator</h1>
+      <p>
+        Sort real-estate-development activities into the correct process phases.
       </p>
 
       {loggedInRole ? (
@@ -68,18 +68,22 @@ export default function Home() {
           <p>
             Logged in as <strong>{loggedInRole}</strong>.
           </p>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
             <button
-              onClick={() =>
-                (window.location.href =
-                  loggedInRole === "INSTRUCTOR" ? "/instructor/" : "/student/")
-              }
+              onClick={() => (window.location.href = "/instructor/")}
+              style={{ background: "#8C1D40", color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontWeight: 600, cursor: "pointer" }}
             >
-              Go to dashboard
+              Instructor Dashboard
+            </button>
+            <button
+              onClick={() => (window.location.href = "/student/")}
+              style={{ background: "#FFC627", color: "#1a1a1a", border: "none", borderRadius: 6, padding: "10px 20px", fontWeight: 600, cursor: "pointer" }}
+            >
+              Student Dashboard
             </button>
             <button
               onClick={onLogout}
-              style={{ background: "#757575" }}
+              style={{ background: "#6b7280", color: "#fff", border: "none", borderRadius: 6, padding: "10px 20px", fontWeight: 600, cursor: "pointer" }}
             >
               Log out
             </button>
