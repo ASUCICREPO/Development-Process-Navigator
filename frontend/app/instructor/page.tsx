@@ -1,55 +1,97 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { API_BASE, getToken } from "../../src/shared/session";
-import { SubmissionsDashboard } from "../../src/instructor/SubmissionsDashboard";
-import { CsvConfigEditor } from "../../src/instructor/CsvConfigEditor";
+import { InstructorSidebar } from "../../src/shared/InstructorSidebar";
 import { useRoleGuard } from "../../src/shared/useRoleGuard";
 
-interface Template { templateId: string; source: string; name: string; }
+interface ExerciseCard {
+  exerciseId: string;
+  configId: string;
+  title: string;
+  status: string;
+  type: string;
+  version: number;
+  enrolledCount: number;
+}
+
+interface RecentActivity {
+  studentName: string;
+  action: string;
+  exerciseTitle: string;
+  time: string;
+  score?: number;
+}
 
 async function authed(path: string, method = "GET", body?: unknown) {
   const token = getToken();
   if (!token) throw new Error("Session expired. Please log in again.");
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({error: `HTTP ${res.status}`}))).error || `Request failed: ${res.status}`);
+  if (!res.ok) throw new Error((await res.json().catch(() => ({ error: `HTTP ${res.status}` }))).error || `Request failed: ${res.status}`);
   return res.json();
 }
 
-type Tab = "author" | "submissions" | "config";
-
-export default function InstructorPage() {
+export default function InstructorDashboard() {
   const allowed = useRoleGuard("INSTRUCTOR");
-  const [tab, setTab] = useState<Tab>("author");
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [templateId, setTemplateId] = useState("");
-  const [name, setName] = useState("Real Estate Demo");
-  const [exerciseId, setExerciseId] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [exercises, setExercises] = useState<ExerciseCard[]>([]);
+  const [studentCount, setStudentCount] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    authed("/templates")
-      .then((r) => {
-        setTemplates(r.templates);
-        if (r.templates[0]) setTemplateId(r.templates[0].templateId);
-      })
-      .catch((e) => setErr(e.message));
+    loadDashboard();
   }, []);
 
-  async function createAndApply() {
-    setErr(null);
+  async function loadDashboard() {
     try {
-      const cfg = await authed("/configurations", "POST", { name, templateId });
-      const applied = await authed(`/configurations/${cfg.configId}/apply`, "POST");
-      setExerciseId(applied.exerciseId);
+      // Load exercises
+      const exRes = await authed("/exercises");
+      const exList = (exRes.exercises ?? []).map((ex: any, i: number) => ({
+        exerciseId: ex.exerciseId,
+        configId: ex.configId || "",
+        title: ex.title || `Exercise ${ex.exerciseId.slice(0, 8)}`,
+        status: ex.status || "Active",
+        type: "Standard",
+        version: 1,
+        enrolledCount: 0,
+      }));
+      setExercises(exList);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Live session modal state
+  const [showModal, setShowModal] = useState(false);
+  const [sessionExercise, setSessionExercise] = useState("");
+  const [sessionCode, setSessionCode] = useState("");
+
+  function generateCode(): string {
+    const words = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"];
+    const word = words[Math.floor(Math.random() * words.length)];
+    const num = Math.floor(Math.random() * 9) + 1;
+    return `${word}-${num}`;
+  }
+
+  function openSessionModal() {
+    setSessionCode(generateCode());
+    if (exercises.length > 0) setSessionExercise(exercises[0].exerciseId);
+    setShowModal(true);
+  }
+
+  async function startSession() {
+    if (!sessionExercise) return;
+    try {
+      await authed("/sessions", "POST", { exerciseId: sessionExercise });
+      setShowModal(false);
+      window.location.href = "/instructor/session";
     } catch (e: any) {
-      setErr(e.message);
+      alert(e.message);
     }
   }
 
@@ -57,90 +99,297 @@ export default function InstructorPage() {
 
   return (
     <div>
-      <h1>Instructor</h1>
+      <InstructorSidebar activeItem="dashboard" />
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <button
-          data-testid="tab-author"
-          onClick={() => setTab("author")}
-          style={{
-            background: tab === "author" ? "#1565c0" : "#e0e0e0",
-            color: tab === "author" ? "#fff" : "#333",
-          }}
-        >
-          Author Exercise
-        </button>
-        <button
-          data-testid="tab-submissions"
-          onClick={() => setTab("submissions")}
-          style={{
-            background: tab === "submissions" ? "#1565c0" : "#e0e0e0",
-            color: tab === "submissions" ? "#fff" : "#333",
-          }}
-        >
-          Submissions
-        </button>
-        <button
-          data-testid="tab-config"
-          onClick={() => setTab("config")}
-          style={{
-            background: tab === "config" ? "#1565c0" : "#e0e0e0",
-            color: tab === "config" ? "#fff" : "#333",
-          }}
-        >
-          Configure Exercise
-        </button>
-      </div>
+      {/* Live Session Modal */}
+      {showModal && (
+        <div style={styles.overlay} onClick={() => setShowModal(false)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Start a Live Session?</h2>
+              <button style={styles.closeBtn} onClick={() => setShowModal(false)}>×</button>
+            </div>
 
-      {tab === "author" && (
-        <>
-          {err && <p className="error" data-testid="instructor-error">{err}</p>}
-
-          <div className="card">
-            <h2>1. Choose a template</h2>
+            <label style={styles.modalLabel}>Select an exercise to run live</label>
             <select
-              data-testid="template-select"
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
+              value={sessionExercise}
+              onChange={(e) => setSessionExercise(e.target.value)}
+              style={styles.modalSelect}
             >
-              {templates.map((t) => (
-                <option key={t.templateId} value={t.templateId}>
-                  {t.name} ({t.source})
-                </option>
+              {exercises.map((ex) => (
+                <option key={ex.exerciseId} value={ex.exerciseId}>{ex.title}</option>
               ))}
             </select>
-            <label>Exercise name</label>
-            <input
-              data-testid="config-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <div>
-              <button data-testid="apply-button" onClick={createAndApply}>
-                Create &amp; Apply to Students
+
+            <label style={styles.modalLabel}>Session Code</label>
+            <div style={styles.codeRow}>
+              <span style={styles.sessionCode}>{sessionCode}</span>
+              <button
+                style={styles.regenerateBtn}
+                onClick={() => setSessionCode(generateCode())}
+              >
+                ↻ Regenerate
               </button>
             </div>
-          </div>
 
-          {exerciseId && (
-            <div className="card ok" data-testid="exercise-created">
-              <h2>2. Share this Exercise ID with students</h2>
-              <p>
-                Exercise ID: <code data-testid="exercise-id">{exerciseId}</code>
-              </p>
-              <p>Students enter this ID on their page to take the exercise.</p>
+            <button style={styles.copyLinkBtn}>
+              📋 Copy Join Link
+            </button>
+
+            <div style={styles.modalActions}>
+              <button style={styles.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
+              <button style={styles.startBtn} onClick={startSession}>Start Session</button>
             </div>
-          )}
-        </>
-      )}
-
-      {tab === "submissions" && (
-        <div className="card">
-          <SubmissionsDashboard />
+          </div>
         </div>
       )}
 
-      {tab === "config" && <CsvConfigEditor />}
+      <main className="main-content">
+        {/* Breadcrumb & Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+          <div>
+            <div style={styles.breadcrumb}>Instructor</div>
+            <h1 style={styles.pageTitle}>Instructor Dashboard</h1>
+          </div>
+          <button style={styles.liveSessionBtn} onClick={openSessionModal}>
+            Start Live Session
+          </button>
+        </div>
+
+        {/* Stats Row */}
+        <div style={styles.statsRow}>
+          <div style={styles.statCard}>
+            <div style={styles.statValue}>{studentCount || "—"}</div>
+            <div style={styles.statLabel}>Active Students</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={styles.statValue}>{exercises.length}</div>
+            <div style={styles.statLabel}>Exercises Created</div>
+          </div>
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statValue, fontSize: 22 }}>—</div>
+            <div style={styles.statLabel}>Last Live Session</div>
+          </div>
+        </div>
+
+        {/* Main Grid */}
+        <div style={styles.mainGrid}>
+          {/* Left: Exercises */}
+          <div>
+            <div style={styles.exercisesHeader}>
+              <h2 style={styles.sectionTitle}>My Exercises</h2>
+              <button
+                style={styles.newExerciseBtn}
+                onClick={() => window.location.href = "/instructor/exercises/new"}
+              >
+                + New Exercise
+              </button>
+            </div>
+
+            {loading ? (
+              <p style={{ color: "#6b7280" }}>Loading...</p>
+            ) : exercises.length === 0 ? (
+              <div style={styles.emptyCard}>
+                <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
+                  No exercises yet. Create your first exercise to get started.
+                </p>
+                <button
+                  style={{ ...styles.newExerciseBtn, marginTop: 12 }}
+                  onClick={() => window.location.href = "/instructor/exercises"}
+                >
+                  + Create Exercise
+                </button>
+              </div>
+            ) : (
+              <div style={styles.exerciseGrid}>
+                {exercises.map((ex) => (
+                  <div key={ex.exerciseId} style={styles.exerciseCard}>
+                    <div style={styles.cardHeader}>
+                      <div style={styles.cardDot} />
+                      <h4 style={styles.cardTitle}>{ex.title}</h4>
+                      <button style={styles.menuBtn}>⋯</button>
+                    </div>
+                    <div style={styles.cardBadges}>
+                      <span style={styles.typeBadge}>{ex.type}</span>
+                      <span style={styles.versionBadge}>v{ex.version}</span>
+                    </div>
+                    <p style={styles.enrolledText}>{ex.enrolledCount} students enrolled</p>
+                    <div style={styles.cardActions}>
+                      <button
+                        style={styles.editBtn}
+                        onClick={() => window.location.href = `/instructor/exercises?edit=${ex.configId}`}
+                      >
+                        Edit
+                      </button>
+                      <button style={styles.assignBtn}>Assign</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right: Recent Activity */}
+          <div style={styles.activityCard}>
+            <h3 style={styles.activityTitle}>Recent Activity</h3>
+            {recentActivity.length === 0 ? (
+              <p style={{ color: "#6b7280", fontSize: 13 }}>No recent activity yet.</p>
+            ) : (
+              recentActivity.map((act, i) => (
+                <div key={i} style={styles.activityItem}>
+                  <div style={styles.activityInfo}>
+                    <div style={styles.activityName}>{act.studentName}</div>
+                    <div style={styles.activityMeta}>
+                      {act.action} · {act.time}
+                    </div>
+                  </div>
+                  {act.score != null && (
+                    <span style={{
+                      ...styles.activityScore,
+                      color: act.score >= 80 ? "#16a34a" : act.score >= 50 ? "#f97316" : "#ef4444",
+                    }}>
+                      {act.score}%
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  breadcrumb: { fontSize: 12, color: "#6b7280", marginBottom: 4 },
+  pageTitle: { fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 },
+  liveSessionBtn: {
+    background: "#FFC627", color: "#1a1a1a", border: "none", borderRadius: 8,
+    padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+  },
+  statsRow: {
+    display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24,
+  },
+  statCard: {
+    background: "#fff", borderRadius: 12, padding: "20px 24px",
+    border: "1px solid #e5e7eb",
+  },
+  statValue: { fontSize: 36, fontWeight: 700, color: "#8C1D40" },
+  statLabel: { fontSize: 13, color: "#6b7280", marginTop: 4 },
+  mainGrid: {
+    display: "grid", gridTemplateColumns: "1fr 280px", gap: 24, alignItems: "start",
+  },
+  exercisesHeader: {
+    display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: 700, color: "#111827", margin: 0 },
+  newExerciseBtn: {
+    background: "#8C1D40", color: "#fff", border: "none", borderRadius: 6,
+    padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+  },
+  emptyCard: {
+    background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12,
+    padding: 32, textAlign: "center" as const,
+  },
+  exerciseGrid: {
+    display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16,
+  },
+  exerciseCard: {
+    background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20,
+  },
+  cardHeader: {
+    display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
+  },
+  cardDot: {
+    width: 10, height: 10, borderRadius: "50%", background: "#16a34a", flexShrink: 0,
+  },
+  cardTitle: { fontSize: 14, fontWeight: 600, color: "#111827", margin: 0, flex: 1 },
+  menuBtn: {
+    background: "none", border: "none", fontSize: 18, color: "#6b7280",
+    cursor: "pointer", padding: "0 4px",
+  },
+  cardBadges: { display: "flex", gap: 6, marginBottom: 8 },
+  typeBadge: {
+    background: "#8C1D40", color: "#fff", fontSize: 10, fontWeight: 700,
+    padding: "2px 8px", borderRadius: 4,
+  },
+  versionBadge: {
+    background: "#f3f4f6", color: "#374151", fontSize: 10, fontWeight: 600,
+    padding: "2px 8px", borderRadius: 4,
+  },
+  enrolledText: { fontSize: 12, color: "#6b7280", marginBottom: 12 },
+  cardActions: { display: "flex", gap: 8 },
+  editBtn: {
+    flex: 1, background: "#f3f4f6", color: "#374151", border: "none",
+    borderRadius: 6, padding: "8px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+  },
+  assignBtn: {
+    flex: 1, background: "#FFC627", color: "#1a1a1a", border: "none",
+    borderRadius: 6, padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+  },
+  activityCard: {
+    background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20,
+  },
+  activityTitle: { fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 16 },
+  activityItem: {
+    display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+    padding: "10px 0", borderBottom: "1px solid #f3f4f6",
+  },
+  activityInfo: { flex: 1 },
+  activityName: { fontSize: 13, fontWeight: 600, color: "#111827" },
+  activityMeta: { fontSize: 11, color: "#6b7280", marginTop: 2 },
+  activityScore: { fontSize: 14, fontWeight: 700 },
+  // Modal styles
+  overlay: {
+    position: "fixed" as const, top: 0, left: 0, right: 0, bottom: 0,
+    background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center",
+    justifyContent: "center", zIndex: 1000,
+  },
+  modal: {
+    background: "#fff", borderRadius: 16, padding: "32px",
+    width: 440, maxWidth: "90vw", boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+  },
+  modalHeader: {
+    display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20,
+  },
+  modalTitle: { fontSize: 20, fontWeight: 700, color: "#111827", margin: 0 },
+  closeBtn: {
+    background: "none", border: "none", fontSize: 24, color: "#6b7280",
+    cursor: "pointer", padding: 0, lineHeight: 1,
+  },
+  modalLabel: {
+    display: "block", fontSize: 12, color: "#6b7280", marginBottom: 6, marginTop: 16,
+  },
+  modalSelect: {
+    width: "100%", padding: "10px 12px", border: "1px solid #d1d5db",
+    borderRadius: 8, fontSize: 14,
+  },
+  codeRow: {
+    display: "flex", alignItems: "center", gap: 12, marginTop: 4,
+  },
+  sessionCode: {
+    fontSize: 28, fontWeight: 800, color: "#1a1a1a", letterSpacing: 2,
+    background: "#FFC627", padding: "8px 20px", borderRadius: 8,
+  },
+  regenerateBtn: {
+    background: "none", border: "none", color: "#8C1D40", fontSize: 13,
+    fontWeight: 600, cursor: "pointer",
+  },
+  copyLinkBtn: {
+    width: "100%", marginTop: 16, padding: "10px", background: "#f3f4f6",
+    border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontWeight: 500,
+    color: "#374151", cursor: "pointer", textAlign: "center" as const,
+  },
+  modalActions: {
+    display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24,
+  },
+  cancelBtn: {
+    background: "#fff", color: "#374151", border: "1px solid #d1d5db",
+    borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+  },
+  startBtn: {
+    background: "#8C1D40", color: "#fff", border: "none",
+    borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer",
+  },
+};

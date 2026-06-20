@@ -42,15 +42,7 @@ export const NavBar: React.FC = () => {
     <header className="top-header">
       <div className="top-header-left">
         <div className="top-header-logo">
-          <div className="logo-text">
-            <span style={{ color: "var(--asu-maroon)", fontWeight: 700, fontSize: 14 }}>
-              ASU
-            </span>{" "}
-            <span style={{ color: "#BF9B30", fontWeight: 700, fontSize: 14 }}>
-              W.P.Carey
-            </span>
-            <span>School of Business</span>
-          </div>
+          <img src="/images/asu-logo.png" alt="ASU W.P. Carey School of Business" style={{ height: 36 }} />
         </div>
         <span className="top-header-title">Development Process Navigator</span>
       </div>
