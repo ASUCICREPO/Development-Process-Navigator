@@ -404,11 +404,29 @@ def save_reflection(principal: Principal, attempt_id: str, body: dict) -> dict:
 
 
 def list_exercises(principal: Principal) -> dict:
-    _require_role(principal, Role.INSTRUCTOR)
     resp = _t("Exercises").scan()
-    items = [e for e in resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
-    return {"exercises": [{"exerciseId": e["exerciseId"], "configId": e.get("configId", ""),
-                           "status": e.get("status", "Active")} for e in items]}
+    if principal.role == Role.INSTRUCTOR:
+        items = [e for e in resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+    else:
+        # Students see all active exercises (they need IDs to load them)
+        items = [e for e in resp.get("Items", []) if e.get("status") == "Active"]
+
+    # Enrich with configuration name as title
+    exercises = []
+    for e in items:
+        title = e.get("exerciseId", "")
+        config_id = e.get("configId")
+        if config_id:
+            cfg = _t("Configurations").get_item(Key={"configId": config_id}).get("Item")
+            if cfg:
+                title = cfg.get("name", title)
+        exercises.append({
+            "exerciseId": e["exerciseId"],
+            "configId": e.get("configId", ""),
+            "title": title,
+            "status": e.get("status", "Active"),
+        })
+    return {"exercises": exercises}
 
 
 def class_results(principal: Principal, exercise_id: str) -> dict:
