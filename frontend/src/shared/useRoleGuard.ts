@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getRole, getToken } from "./session";
+import { getRole, getToken, getViewAs } from "./session";
 
 /**
- * Redirects to / if the user is not logged in or doesn't have the required role.
+ * Checks if the user is logged in and allowed to view the page.
+ * Instructors can view student pages via "VIEW AS" toggle.
  * Returns false while checking (render nothing), true once verified.
  */
 export function useRoleGuard(required: "INSTRUCTOR" | "STUDENT"): boolean {
@@ -11,12 +12,28 @@ export function useRoleGuard(required: "INSTRUCTOR" | "STUDENT"): boolean {
 
   useEffect(() => {
     const token = getToken();
-    const role = getRole();
-    if (!token || role !== required) {
+    const actualRole = getRole();
+    const viewAs = getViewAs();
+
+    if (!token || !actualRole) {
       window.location.href = "/";
-    } else {
-      setAllowed(true);
+      return;
     }
+
+    // Instructors can view any page via VIEW AS toggle
+    if (actualRole === "INSTRUCTOR") {
+      setAllowed(true);
+      return;
+    }
+
+    // Students can only access student pages
+    if (actualRole === "STUDENT" && required === "STUDENT") {
+      setAllowed(true);
+      return;
+    }
+
+    // Students cannot access instructor pages
+    window.location.href = "/";
   }, [required]);
 
   return allowed;

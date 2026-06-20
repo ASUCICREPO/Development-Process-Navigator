@@ -3,8 +3,8 @@ import React from "react";
 import { NavBar } from "../src/shared/NavBar";
 
 export const metadata = {
-  title: "ProcessCanvas",
-  description: "Instructor-authored activity sorting exercise",
+  title: "Development Process Navigator",
+  description: "Real estate development process ordering exercise",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <NavBar />
-        <div className="container">{children}</div>
+        {children}
       </body>
     </html>
   );

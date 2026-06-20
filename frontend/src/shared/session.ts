@@ -9,6 +9,7 @@ export const API_BASE = (
 const TOKEN_KEY = "pc_idToken";
 const ROLE_KEY = "pc_role";
 const UID_KEY = "pc_userId";
+const VIEW_AS_KEY = "pc_viewAs";
 
 export function setSession(idToken: string, role: string, userId: string) {
   localStorage.setItem(TOKEN_KEY, idToken);
@@ -17,7 +18,7 @@ export function setSession(idToken: string, role: string, userId: string) {
 }
 
 export function clearSession() {
-  [TOKEN_KEY, ROLE_KEY, UID_KEY].forEach((k) => localStorage.removeItem(k));
+  [TOKEN_KEY, ROLE_KEY, UID_KEY, VIEW_AS_KEY].forEach((k) => localStorage.removeItem(k));
 }
 
 export function getToken(): string | null {
@@ -34,7 +35,7 @@ export function getToken(): string | null {
       clearSession(); // wipe expired token
       return null;
     }
-  } catch {}
+  } catch { }
   return token;
 }
 export function getRole(): string | null {
@@ -42,6 +43,14 @@ export function getRole(): string | null {
 }
 export function getUserId(): string | null {
   return typeof window === "undefined" ? null : localStorage.getItem(UID_KEY);
+}
+
+export function getViewAs(): string | null {
+  return typeof window === "undefined" ? null : localStorage.getItem(VIEW_AS_KEY);
+}
+
+export function setViewAs(role: "INSTRUCTOR" | "STUDENT") {
+  localStorage.setItem(VIEW_AS_KEY, role);
 }
 
 export function api(): ApiClient {

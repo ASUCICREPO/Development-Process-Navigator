@@ -1,12 +1,25 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { getRole, clearSession } from "./session";
+import { getRole, clearSession, getViewAs, setViewAs } from "./session";
 
 export const NavBar: React.FC = () => {
   const [role, setRole] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   useEffect(() => {
-    setRole(getRole());
+    const actualRole = getRole();
+    setRole(actualRole);
+    // Determine which view we're in based on URL
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path.startsWith("/student")) {
+        setViewing("STUDENT");
+      } else if (path.startsWith("/instructor")) {
+        setViewing("INSTRUCTOR");
+      } else {
+        setViewing(actualRole);
+      }
+    }
   }, []);
 
   function logout() {
@@ -14,22 +27,56 @@ export const NavBar: React.FC = () => {
     window.location.href = "/";
   }
 
+  function switchView(newView: string) {
+    setViewAs(newView as "INSTRUCTOR" | "STUDENT");
+    if (newView === "INSTRUCTOR") {
+      window.location.href = "/instructor/";
+    } else {
+      window.location.href = "/student/";
+    }
+  }
+
+  const initials = role ? (role === "INSTRUCTOR" ? "I" : "S") : "";
+
   return (
-    <nav>
-      <a href="/">ProcessCanvas</a>
-      {role === "INSTRUCTOR" && <a href="/instructor/">Instructor</a>}
-      {role === "STUDENT" && <a href="/student/">Student</a>}
+    <header className="top-header">
+      <div className="top-header-left">
+        <div className="top-header-logo">
+          <div className="logo-text">
+            <span style={{ color: "var(--asu-maroon)", fontWeight: 700, fontSize: 14 }}>
+              ASU
+            </span>{" "}
+            <span style={{ color: "#BF9B30", fontWeight: 700, fontSize: 14 }}>
+              W.P.Carey
+            </span>
+            <span>School of Business</span>
+          </div>
+        </div>
+        <span className="top-header-title">Development Process Navigator</span>
+      </div>
+
       {role && (
-        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, opacity: 0.85 }}>{role.charAt(0) + role.slice(1).toLowerCase()}</span>
-          <button
-            onClick={logout}
-            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.4)", padding: "3px 10px", fontSize: 12, borderRadius: 4, cursor: "pointer", color: "#fff" }}
-          >
-            Log out
-          </button>
-        </span>
+        <div className="top-header-right">
+          <span className="view-as-label">VIEW AS</span>
+          <div className="role-toggle">
+            <button
+              className={viewing === "STUDENT" ? "active-student" : "inactive"}
+              onClick={() => switchView("STUDENT")}
+            >
+              Student
+            </button>
+            <button
+              className={viewing === "INSTRUCTOR" ? "active-instructor" : "inactive"}
+              onClick={() => switchView("INSTRUCTOR")}
+            >
+              Instructor
+            </button>
+          </div>
+          <div className="avatar" onClick={logout} title="Click to log out" style={{ cursor: "pointer" }}>
+            {initials}
+          </div>
+        </div>
       )}
-    </nav>
+    </header>
   );
 };
