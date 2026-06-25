@@ -57,12 +57,14 @@ export const NavBar: React.FC = () => {
             >
               Student
             </button>
-            <button
-              className={viewing === "INSTRUCTOR" ? "active-instructor" : "inactive"}
-              onClick={() => switchView("INSTRUCTOR")}
-            >
-              Instructor
-            </button>
+            {role === "INSTRUCTOR" && (
+              <button
+                className={viewing === "INSTRUCTOR" ? "active-instructor" : "inactive"}
+                onClick={() => switchView("INSTRUCTOR")}
+              >
+                Instructor
+              </button>
+            )}
           </div>
           <div className="avatar" onClick={logout} title="Click to log out" style={{ cursor: "pointer" }}>
             {initials}

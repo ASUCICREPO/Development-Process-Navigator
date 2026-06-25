@@ -7,7 +7,7 @@ export interface ApiClientOptions {
 }
 
 export class ApiClient {
-  constructor(private opts: ApiClientOptions) {}
+  constructor(private opts: ApiClientOptions) { }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = this.opts.getToken();
@@ -58,4 +58,9 @@ export class ApiClient {
   // Sessions
   startSession = (exerciseId: string) => this.request("POST", `/sessions`, { exerciseId });
   joinSession = (sessionId: string) => this.request("POST", `/sessions/${sessionId}/join`);
+
+  // Instructor
+  getRoster = () => this.request("GET", `/roster`);
+  getInstructorStats = () => this.request("GET", `/instructor/stats`);
+  getExerciseDetailedResults = (exerciseId: string) => this.request("GET", `/exercises/${exerciseId}/detailed-results`);
 }

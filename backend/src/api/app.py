@@ -465,6 +465,244 @@ def _require_role(principal: Principal | None, role: Role) -> Principal:
     return principal
 
 
+# ---- Roster & Dashboard Stats -----------------------------------------------
+
+def get_roster(principal: Principal) -> dict:
+    """List all students enrolled with this instructor, enriched with their latest attempt data."""
+    _require_role(principal, Role.INSTRUCTOR)
+
+    # Get enrollments for this instructor
+    resp = _t("Enrollments").query(
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("instructorId").eq(principal.user_id))
+    enrollments = resp.get("Items", [])
+
+    # Also check Users table for all students (fallback if no enrollments table usage)
+    users_resp = _t("Users").scan()
+    all_students = [u for u in users_resp.get("Items", []) if u.get("role") == "STUDENT"]
+
+    # If no enrollments, show all students (small scale)
+    student_ids = [e["studentId"] for e in enrollments] if enrollments else [u["userId"] for u in all_students]
+
+    # Get exercises for this instructor
+    ex_resp = _t("Exercises").scan()
+    instructor_exercises = [e for e in ex_resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+    exercise_ids = [e["exerciseId"] for e in instructor_exercises]
+
+    # Build roster with attempt data
+    roster = []
+    for sid in student_ids:
+        user = next((u for u in all_students if u["userId"] == sid), None)
+        if not user:
+            continue
+
+        # Get this student's attempts for instructor's exercises
+        attempts_resp = _t("Attempts").query(
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(sid))
+        student_attempts = [a for a in attempts_resp.get("Items", []) if a.get("exerciseId") in exercise_ids]
+        student_attempts.sort(key=lambda a: a.get("createdAt", ""), reverse=True)
+
+        latest = student_attempts[0] if student_attempts else None
+        has_final = any(a.get("isFinal") in (True, 1) for a in student_attempts)
+        has_submitted = len(student_attempts) > 0
+
+        # Determine status
+        if has_final:
+            status = "Completed"
+        elif has_submitted:
+            status = "Submitted"
+        else:
+            # Check if they have a state (started but not submitted)
+            state_items = []
+            for eid in exercise_ids:
+                s = _t("StudentExerciseState").get_item(
+                    Key={"exerciseId": eid, "studentId": sid}).get("Item")
+                if s:
+                    state_items.append(s)
+            if state_items:
+                status = "In Progress"
+            else:
+                status = "Not Started"
+
+        # Get exercise title for latest attempt
+        exercise_title = ""
+        if latest:
+            ex_match = next((e for e in instructor_exercises if e["exerciseId"] == latest["exerciseId"]), None)
+            if ex_match and ex_match.get("configId"):
+                cfg = _t("Configurations").get_item(Key={"configId": ex_match["configId"]}).get("Item")
+                if cfg:
+                    exercise_title = cfg.get("name", "")
+            if not exercise_title:
+                exercise_title = latest.get("exerciseId", "")[:12]
+
+        roster.append({
+            "studentId": sid,
+            "name": user.get("displayName", user.get("email", "").split("@")[0]),
+            "email": user.get("email", ""),
+            "joined": user.get("createdAt", ""),
+            "exercise": exercise_title,
+            "score": int(latest["scorePercent"]) if latest and latest.get("scorePercent") else None,
+            "status": status,
+        })
+
+    return {"roster": roster, "totalStudents": len(roster)}
+
+
+def get_instructor_stats(principal: Principal) -> dict:
+    """Dashboard stats for instructor."""
+    _require_role(principal, Role.INSTRUCTOR)
+
+    # Count students
+    roster_data = get_roster(principal)
+    student_count = roster_data["totalStudents"]
+
+    # Count exercises
+    ex_resp = _t("Exercises").scan()
+    exercise_count = len([e for e in ex_resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id])
+
+    # Recent activity: latest attempts across all instructor exercises
+    instructor_exercises = [e for e in ex_resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+    exercise_ids = [e["exerciseId"] for e in instructor_exercises]
+
+    recent = []
+    for eid in exercise_ids[:5]:  # Limit to avoid too many queries
+        try:
+            resp = _t("Attempts").query(
+                IndexName="byExercise",
+                KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(eid))
+            for a in resp.get("Items", []):
+                # Look up student name
+                user = _t("Users").get_item(Key={"userId": a["studentId"]}).get("Item")
+                student_name = user.get("displayName", "Student") if user else "Student"
+                recent.append({
+                    "studentName": student_name,
+                    "action": f"submitted Exercise",
+                    "exerciseId": eid,
+                    "score": int(a["scorePercent"]) if a.get("scorePercent") else None,
+                    "createdAt": a.get("createdAt", ""),
+                })
+        except Exception:
+            pass
+
+    # Sort by date, take top 10
+    recent.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+    recent = recent[:10]
+
+    return {
+        "studentCount": student_count,
+        "exerciseCount": exercise_count,
+        "recentActivity": recent,
+    }
+
+
+def add_student_to_roster(principal: Principal, body: dict) -> dict:
+    """Add a student to instructor's roster by email."""
+    _require_role(principal, Role.INSTRUCTOR)
+    email = body.get("email", "").strip()
+    if not email or "@" not in email:
+        raise ValidationError("Valid email required.")
+
+    # Find the student
+    users_resp = _t("Users").scan()
+    student = next((u for u in users_resp.get("Items", [])
+                    if u.get("email") == email and u.get("role") == "STUDENT"), None)
+    if not student:
+        raise NotFoundError("No student account found with that email.")
+
+    # Create enrollment
+    _t("Enrollments").put_item(Item={
+        "instructorId": principal.user_id,
+        "studentId": student["userId"],
+        "source": "ROSTER",
+    })
+    return {"ok": True, "studentId": student["userId"], "name": student.get("displayName", "")}
+
+
+def create_join_code_endpoint(principal: Principal) -> dict:
+    """Create a join code for this instructor."""
+    _require_role(principal, Role.INSTRUCTOR)
+    code = uuid.uuid4().hex[:8].upper()
+    # Format as ASU-XXXX style
+    formatted_code = f"ASU-{code[:4]}"
+    _t("JoinCodes").put_item(Item={
+        "code": formatted_code,
+        "instructorId": principal.user_id,
+        "status": "Active",
+        "createdAt": _now(),
+    })
+    return {"code": formatted_code}
+
+
+def get_exercise_results(principal: Principal, exercise_id: str) -> dict:
+    """Detailed results for a specific exercise including all attempts."""
+    _require_role(principal, Role.INSTRUCTOR)
+    ex = _exercise_record(exercise_id)
+    if ex["ownerInstructorId"] != principal.user_id:
+        raise ForbiddenError("Not the owner of this exercise.")
+
+    # Get all attempts for this exercise
+    resp = _t("Attempts").query(
+        IndexName="byExercise",
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(exercise_id))
+    all_attempts = resp.get("Items", [])
+
+    # Group by student
+    by_student: dict = {}
+    for a in all_attempts:
+        sid = a["studentId"]
+        if sid not in by_student:
+            by_student[sid] = []
+        by_student[sid].append(a)
+
+    # Build results
+    results = []
+    for sid, attempts in by_student.items():
+        attempts.sort(key=lambda x: int(x.get("attemptNumber", 1)))
+        user = _t("Users").get_item(Key={"userId": sid}).get("Item")
+        name = user.get("displayName", "Student") if user else "Student"
+        email = user.get("email", "") if user else ""
+
+        attempt1 = attempts[0] if len(attempts) >= 1 else None
+        attempt2 = attempts[1] if len(attempts) >= 2 else None
+        has_final = any(a.get("isFinal") in (True, 1) for a in attempts)
+
+        score1 = int(attempt1["scorePercent"]) if attempt1 and attempt1.get("scorePercent") else None
+        score2 = int(attempt2["scorePercent"]) if attempt2 and attempt2.get("scorePercent") else None
+
+        change = "none"
+        if score1 is not None and score2 is not None:
+            change = "up" if score2 > score1 else "down" if score2 < score1 else "none"
+
+        status = "Completed" if has_final else "Submitted" if attempts else "Not Started"
+
+        results.append({
+            "studentId": sid,
+            "name": name,
+            "email": email,
+            "attempt1": score1,
+            "attempt2": score2,
+            "change": change,
+            "status": status,
+        })
+
+    # Stats
+    scores = [r["attempt2"] or r["attempt1"] for r in results if (r["attempt2"] or r["attempt1"]) is not None]
+    class_avg = round(sum(scores) / len(scores)) if scores else 0
+    highest = max(scores) if scores else 0
+    lowest = min(scores) if scores else 0
+    submitted_count = len([r for r in results if r["status"] in ("Completed", "Submitted")])
+
+    return {
+        "results": results,
+        "stats": {
+            "classAverage": class_avg,
+            "highest": highest,
+            "lowest": lowest,
+            "submitted": submitted_count,
+            "total": len(results),
+        }
+    }
+
+
 # ---- Dispatcher ------------------------------------------------------------
 
 def dispatch(method: str, path: str, body: dict, principal: Principal | None) -> tuple[int, dict]:
@@ -487,6 +725,14 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 200, list_exercises(principal)
     if method == "GET" and seg == ["templates"]:
         return 200, list_templates(principal)
+    if method == "GET" and seg == ["roster"]:
+        return 200, get_roster(principal)
+    if method == "POST" and seg == ["roster", "add"]:
+        return 200, add_student_to_roster(principal, body)
+    if method == "POST" and seg == ["join-codes"]:
+        return 200, create_join_code_endpoint(principal)
+    if method == "GET" and seg == ["instructor", "stats"]:
+        return 200, get_instructor_stats(principal)
     if method == "POST" and seg == ["configurations"]:
         return 201, create_configuration(principal, body)
     if method == "PUT" and len(seg) == 2 and seg[0] == "configurations":
@@ -506,6 +752,8 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 200, resubmit(principal, seg[1], body)
     if method == "GET" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "results":
         return 200, class_results(principal, seg[1])
+    if method == "GET" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "detailed-results":
+        return 200, get_exercise_results(principal, seg[1])
 
     if method == "GET" and len(seg) == 3 and seg[0] == "students" and seg[2] == "history":
         return 200, get_history(principal, seg[1])

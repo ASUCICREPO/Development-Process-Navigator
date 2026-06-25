@@ -59,11 +59,38 @@ export default function InstructorDashboard() {
         enrolledCount: 0,
       }));
       setExercises(exList);
+
+      // Load instructor stats
+      try {
+        const stats = await authed("/instructor/stats");
+        setStudentCount(stats.studentCount || 0);
+        if (stats.recentActivity) {
+          setRecentActivity(stats.recentActivity.map((a: any) => ({
+            studentName: a.studentName || "Student",
+            action: a.action || "submitted",
+            exerciseTitle: a.exerciseId || "",
+            time: a.createdAt ? formatTimeAgo(a.createdAt) : "",
+            score: a.score,
+          })));
+        }
+      } catch { }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  }
+
+  function formatTimeAgo(dateStr: string): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
   }
 
   // Live session modal state

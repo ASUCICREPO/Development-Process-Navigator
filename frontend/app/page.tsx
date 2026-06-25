@@ -32,9 +32,9 @@ export default function Home() {
       const payload = decodeJwt(r.idToken);
       const userRole = payload["custom:role"] || "STUDENT";
       setSession(r.idToken, userRole, payload.sub);
-      if (displayName || payload.name) {
-        localStorage.setItem("pc_displayName", displayName || payload.name || email.split("@")[0]);
-      }
+      // Store display name
+      const name = displayName || payload.name || payload.email || email.split("@")[0];
+      localStorage.setItem("pc_displayName", name);
       setLoggedInRole(userRole);
       window.location.href = userRole === "INSTRUCTOR" ? "/instructor/" : "/student/";
     } catch (e: any) {

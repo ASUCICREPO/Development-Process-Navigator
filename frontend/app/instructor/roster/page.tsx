@@ -27,21 +27,15 @@ async function authed(path: string, method = "GET", body?: unknown) {
     return res.json();
 }
 
-// Demo data for display (real data would come from backend roster endpoint)
-const DEMO_STUDENTS: Student[] = [
-    { id: "1", name: "Jordan Lee", email: "jlee@asu.edu", initials: "JL", joined: "Oct 12, 2025", exercise: "Office Building", score: 85, status: "Completed" },
-    { id: "2", name: "Priya Sharma", email: "psharma@asu.edu", initials: "PS", joined: "Oct 12, 2025", exercise: "Office Building", score: 72, status: "Submitted" },
-    { id: "3", name: "Marcus Webb", email: "mwebb@asu.edu", initials: "MW", joined: "Oct 14, 2025", exercise: "Office Building", score: null, status: "In Progress" },
-    { id: "4", name: "Aisha Johnson", email: "ajohnson@asu.edu", initials: "AJ", joined: "Oct 14, 2025", exercise: "Office Building", score: 91, status: "Completed" },
-    { id: "5", name: "Carlos Rivera", email: "crivera@asu.edu", initials: "CR", joined: "Oct 15, 2025", exercise: "Mixed-Use", score: 58, status: "Submitted" },
-    { id: "6", name: "Emma Chen", email: "echen@asu.edu", initials: "EC", joined: "Oct 15, 2025", exercise: "Mixed-Use", score: null, status: "Not Started" },
-    { id: "7", name: "Devon Park", email: "dpark@asu.edu", initials: "DP", joined: "Oct 16, 2025", exercise: "Mixed-Use", score: 79, status: "Completed" },
-    { id: "8", name: "Sofia Torres", email: "storres@asu.edu", initials: "ST", joined: "Oct 16, 2025", exercise: "Mixed-Use", score: null, status: "In Progress" },
-];
-
 const AVATAR_COLORS = ["#8C1D40", "#e65100", "#2e7d32", "#1565c0", "#4a148c", "#bf360c", "#1b5e20", "#283593"];
 
 function getAvatarColor(idx: number) { return AVATAR_COLORS[idx % AVATAR_COLORS.length]; }
+
+function getInitials(name: string): string {
+    const parts = name.split(" ").filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+}
 
 function getStatusStyle(status: string): React.CSSProperties {
     switch (status) {
@@ -54,7 +48,8 @@ function getStatusStyle(status: string): React.CSSProperties {
 
 export default function RosterPage() {
     const allowed = useRoleGuard("INSTRUCTOR");
-    const [students, setStudents] = useState<Student[]>(DEMO_STUDENTS);
+    const [students, setStudents] = useState<Student[]>([]);
+    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All Statuses");
     const [showFilterDrop, setShowFilterDrop] = useState(false);
@@ -64,9 +59,33 @@ export default function RosterPage() {
     const [joinCode, setJoinCode] = useState("ASU-2026");
     const [viewStudent, setViewStudent] = useState<Student | null>(null);
 
+    useEffect(() => { loadRoster(); }, []);
+
+    async function loadRoster() {
+        try {
+            const res = await authed("/roster");
+            const roster = (res.roster ?? []).map((s: any) => ({
+                id: s.studentId,
+                name: s.name || "Student",
+                email: s.email || "",
+                initials: getInitials(s.name || "ST"),
+                joined: s.joined ? new Date(s.joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "",
+                exercise: s.exercise || "",
+                score: s.score,
+                status: (s.status || "Not Started") as Student["status"],
+            }));
+            setStudents(roster);
+        } catch (e) { console.error(e); }
+        finally { setLoading(false); }
+    }
+
     function generateJoinCode() {
-        const num = Math.floor(Math.random() * 9000) + 1000;
-        setJoinCode(`ASU-${num}`);
+        authed("/join-codes", "POST").then((res) => {
+            setJoinCode(res.code || "ASU-0000");
+        }).catch(() => {
+            const num = Math.floor(Math.random() * 9000) + 1000;
+            setJoinCode(`ASU-${num}`);
+        });
     }
 
     const filtered = students.filter((s) => {
@@ -132,7 +151,15 @@ export default function RosterPage() {
                                     placeholder="name@asu.edu"
                                     style={styles.modalInput}
                                 />
-                                <button style={styles.sendInviteBtn}>Send Invite</button>
+                                <button style={styles.sendInviteBtn} onClick={async () => {
+                                    if (!inviteEmail) return;
+                                    try {
+                                        await authed("/roster/add", "POST", { email: inviteEmail });
+                                        setInviteEmail("");
+                                        loadRoster();
+                                        alert("Student added!");
+                                    } catch (e: any) { alert(e.message); }
+                                }}>Send Invite</button>
                             </>
                         )}
 
