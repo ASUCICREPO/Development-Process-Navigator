@@ -58,8 +58,31 @@ export default function RosterPage() {
     const [inviteEmail, setInviteEmail] = useState("");
     const [joinCode, setJoinCode] = useState("ASU-2026");
     const [viewStudent, setViewStudent] = useState<Student | null>(null);
+    const [studentHistory, setStudentHistory] = useState<{ title: string; score: number }[]>([]);
 
     useEffect(() => { loadRoster(); }, []);
+
+    useEffect(() => {
+        if (viewStudent) {
+            // Fetch this student's exercise history
+            authed(`/students/${viewStudent.id}/history`).then((res) => {
+                const attempts = res.attempts ?? [];
+                const byExercise: Record<string, number> = {};
+                for (const a of attempts) {
+                    const eid = a.exerciseId;
+                    if (!byExercise[eid] || a.scorePercent > byExercise[eid]) {
+                        byExercise[eid] = a.scorePercent || 0;
+                    }
+                }
+                setStudentHistory(Object.entries(byExercise).map(([eid, score]) => ({
+                    title: eid.slice(0, 12),
+                    score,
+                })));
+            }).catch(() => setStudentHistory([]));
+        } else {
+            setStudentHistory([]);
+        }
+    }, [viewStudent]);
 
     async function loadRoster() {
         try {
@@ -221,14 +244,16 @@ export default function RosterPage() {
                         </div>
 
                         <h4 style={{ fontSize: 15, fontWeight: 700, marginTop: 20, marginBottom: 12 }}>Exercise History</h4>
-                        <div style={styles.historyItem}>
-                            <span>Office Building Development</span>
-                            <span style={{ color: "#16a34a", fontWeight: 700 }}>82%</span>
-                        </div>
-                        <div style={styles.historyItem}>
-                            <span>Industrial Building</span>
-                            <span style={{ color: "#f97316", fontWeight: 700 }}>74%</span>
-                        </div>
+                        {studentHistory.length === 0 ? (
+                            <p style={{ color: "#6b7280", fontSize: 13 }}>No exercise history yet.</p>
+                        ) : (
+                            studentHistory.map((h, i) => (
+                                <div key={i} style={styles.historyItem}>
+                                    <span>{h.title}</span>
+                                    <span style={{ color: h.score >= 80 ? "#16a34a" : h.score >= 50 ? "#f97316" : "#ef4444", fontWeight: 700 }}>{h.score}%</span>
+                                </div>
+                            ))
+                        )}
 
                         <div style={{ marginTop: 24, textAlign: "center" as const }}>
                             <button style={styles.doneBtn} onClick={() => setViewStudent(null)}>Close</button>
