@@ -434,8 +434,24 @@ def list_exercises(principal: Principal) -> dict:
     if principal.role == Role.INSTRUCTOR:
         items = [e for e in resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
     else:
-        # Students see all active exercises (they need IDs to load them)
-        items = [e for e in resp.get("Items", []) if e.get("status") == "Active"]
+        # Students only see exercises from instructors they're enrolled with,
+        # or exercises they've already started (have state for)
+        # 1. Get enrolled instructor IDs
+        enrolled_resp = _t("Enrollments").scan()
+        my_instructors = {en["instructorId"] for en in enrolled_resp.get("Items", [])
+                         if en.get("studentId") == principal.user_id}
+
+        # 2. Get exercises I already have state for
+        state_resp = _t("StudentExerciseState").scan()
+        my_exercise_ids = {s["exerciseId"] for s in state_resp.get("Items", [])
+                          if s.get("studentId") == principal.user_id}
+
+        # 3. Filter: exercises from my instructors OR exercises I've started
+        items = [e for e in resp.get("Items", [])
+                 if e.get("status") == "Active" and (
+                     e.get("ownerInstructorId") in my_instructors or
+                     e.get("exerciseId") in my_exercise_ids
+                 )]
 
     # Enrich with configuration name as title
     exercises = []
