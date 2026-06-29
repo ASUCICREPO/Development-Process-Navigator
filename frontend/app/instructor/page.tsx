@@ -98,6 +98,7 @@ export default function InstructorDashboard() {
   const [sessionExercise, setSessionExercise] = useState("");
   const [sessionCode, setSessionCode] = useState("");
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   function generateCode(): string {
     const words = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"];
@@ -124,14 +125,19 @@ export default function InstructorDashboard() {
   }
 
   async function deleteExercise(exerciseId: string) {
-    if (!confirm("Are you sure you want to delete this exercise? This cannot be undone.")) return;
+    setConfirmDelete(exerciseId);
+  }
+
+  async function confirmDeleteExercise() {
+    if (!confirmDelete) return;
     try {
-      await authed(`/exercises/${exerciseId}`, "DELETE");
-      setExercises((prev) => prev.filter((ex) => ex.exerciseId !== exerciseId));
+      await authed(`/exercises/${confirmDelete}`, "DELETE");
+      setExercises((prev) => prev.filter((ex) => ex.exerciseId !== confirmDelete));
       setMenuOpen(null);
     } catch (e: any) {
       alert(e.message);
     }
+    setConfirmDelete(null);
   }
 
   if (!allowed) return null;
@@ -178,6 +184,22 @@ export default function InstructorDashboard() {
             <div style={styles.modalActions}>
               <button style={styles.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
               <button style={styles.startBtn} onClick={startSession}>Start Session</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && (
+        <div style={styles.overlay} onClick={() => setConfirmDelete(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 12 }}>Delete Exercise?</h2>
+            <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24 }}>
+              Are you sure you want to delete this exercise? This action cannot be undone. All student submissions for this exercise will remain in history.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button style={styles.cancelBtn} onClick={() => setConfirmDelete(null)}>Cancel</button>
+              <button style={{ ...styles.startBtn, background: "#ef4444" }} onClick={confirmDeleteExercise}>Delete</button>
             </div>
           </div>
         </div>

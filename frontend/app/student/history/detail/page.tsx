@@ -105,7 +105,15 @@ export default function HistoryDetailPage() {
                     names[act.activityId] = act.title || act.activityId;
                 }
                 setActivityNames(names);
-            } catch { }
+            } catch {
+                // Exercise may have been deleted/re-applied — format IDs nicely
+                const names: Record<string, string> = {};
+                for (const card of (res.cardFeedback ?? [])) {
+                    const match = card.activityId.match(/act-(\d+)/);
+                    names[card.activityId] = match ? `Activity ${match[1]}` : card.activityId;
+                }
+                setActivityNames(names);
+            }
 
             // Fetch exercise title if not already set
             if (!exerciseTitle) {
