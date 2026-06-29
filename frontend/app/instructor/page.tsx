@@ -97,6 +97,7 @@ export default function InstructorDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [sessionExercise, setSessionExercise] = useState("");
   const [sessionCode, setSessionCode] = useState("");
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   function generateCode(): string {
     const words = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"];
@@ -117,6 +118,17 @@ export default function InstructorDashboard() {
       await authed("/sessions", "POST", { exerciseId: sessionExercise });
       setShowModal(false);
       window.location.href = "/instructor/session";
+    } catch (e: any) {
+      alert(e.message);
+    }
+  }
+
+  async function deleteExercise(exerciseId: string) {
+    if (!confirm("Are you sure you want to delete this exercise? This cannot be undone.")) return;
+    try {
+      await authed(`/exercises/${exerciseId}`, "DELETE");
+      setExercises((prev) => prev.filter((ex) => ex.exerciseId !== exerciseId));
+      setMenuOpen(null);
     } catch (e: any) {
       alert(e.message);
     }
@@ -234,7 +246,19 @@ export default function InstructorDashboard() {
                     <div style={styles.cardHeader}>
                       <div style={styles.cardDot} />
                       <h4 style={styles.cardTitle}>{ex.title}</h4>
-                      <button style={styles.menuBtn}>⋯</button>
+                      <div style={{ position: "relative" as any }}>
+                        <button style={styles.menuBtn} onClick={() => setMenuOpen(menuOpen === ex.exerciseId ? null : ex.exerciseId)}>⋯</button>
+                        {menuOpen === ex.exerciseId && (
+                          <div style={styles.menuDropdown}>
+                            <button style={styles.menuItem} onClick={() => { setMenuOpen(null); window.location.href = `/instructor/exercises?edit=${ex.configId}`; }}>
+                              ✏️ Edit
+                            </button>
+                            <button style={{ ...styles.menuItem, color: "#ef4444" }} onClick={() => deleteExercise(ex.exerciseId)}>
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div style={styles.cardBadges}>
                       <span style={styles.typeBadge}>{ex.type}</span>
@@ -335,6 +359,16 @@ const styles: Record<string, React.CSSProperties> = {
   menuBtn: {
     background: "none", border: "none", fontSize: 18, color: "#6b7280",
     cursor: "pointer", padding: "0 4px",
+  },
+  menuDropdown: {
+    position: "absolute" as any, top: 28, right: 0, background: "#fff",
+    border: "1px solid #e5e7eb", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    zIndex: 50, minWidth: 120, overflow: "hidden",
+  },
+  menuItem: {
+    display: "block", width: "100%", background: "none", border: "none",
+    padding: "10px 14px", fontSize: 13, textAlign: "left" as any,
+    cursor: "pointer", color: "#374151",
   },
   cardBadges: { display: "flex", gap: 6, marginBottom: 8 },
   typeBadge: {

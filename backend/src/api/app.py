@@ -617,6 +617,16 @@ def add_student_to_roster(principal: Principal, body: dict) -> dict:
     return {"ok": True, "studentId": student["userId"], "name": student.get("displayName", "")}
 
 
+def delete_exercise(principal: Principal, exercise_id: str) -> dict:
+    """Delete an exercise owned by this instructor."""
+    _require_role(principal, Role.INSTRUCTOR)
+    ex = _exercise_record(exercise_id)
+    if ex.get("ownerInstructorId") != principal.user_id:
+        raise ForbiddenError("Not the owner of this exercise.")
+    _t("Exercises").delete_item(Key={"exerciseId": exercise_id})
+    return {"ok": True, "exerciseId": exercise_id}
+
+
 def create_join_code_endpoint(principal: Principal) -> dict:
     """Create a join code for this instructor."""
     _require_role(principal, Role.INSTRUCTOR)
@@ -742,6 +752,8 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
 
     if method == "GET" and len(seg) == 2 and seg[0] == "exercises":
         return 200, get_exercise(principal, seg[1])
+    if method == "DELETE" and len(seg) == 2 and seg[0] == "exercises":
+        return 200, delete_exercise(principal, seg[1])
     if method == "PUT" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "placements":
         return 200, save_placements(principal, seg[1], body)
     if method == "POST" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "submit":
