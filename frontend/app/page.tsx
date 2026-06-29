@@ -127,6 +127,19 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Warning for students trying to register as instructor */}
+        {mode === "register" && role === "INSTRUCTOR" && (
+          <div style={styles.warningBanner}>
+            <span style={{ fontSize: 16 }}>⚠️</span>
+            <div>
+              <strong style={{ color: "#92400e", fontSize: 13 }}>Instructor accounts are restricted</strong>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#78350f" }}>
+                Only authorized faculty can register as instructors. If you&apos;re a student, please select &quot;Student&quot; above.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Mode Tabs */}
         <div style={styles.modeTabs}>
           <button
@@ -383,5 +396,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     fontWeight: 600,
     cursor: "pointer",
+  },
+  warningBanner: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    background: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: 8,
+    padding: "12px 14px",
+    marginBottom: 16,
   },
 };
