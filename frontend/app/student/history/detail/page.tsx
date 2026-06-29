@@ -97,22 +97,32 @@ export default function HistoryDetailPage() {
             const res: any = await client.getAttempt(attemptId);
             setDetail(res);
 
-            // Fetch exercise data to get activity titles
-            try {
-                const exData: any = await client.getExercise(res.exerciseId);
-                const names: Record<string, string> = {};
-                for (const act of (exData.activities ?? [])) {
-                    names[act.activityId] = act.title || act.activityId;
+            // Use activity names from the API response if available
+            if (res.activityNames && Object.keys(res.activityNames).length > 0) {
+                setActivityNames(res.activityNames);
+            } else {
+                // Fallback: fetch exercise data to get activity titles
+                try {
+                    const exData: any = await client.getExercise(res.exerciseId);
+                    const names: Record<string, string> = {};
+                    for (const act of (exData.activities ?? [])) {
+                        names[act.activityId] = act.title || act.activityId;
+                    }
+                    setActivityNames(names);
+                } catch {
+                    // Exercise may have been deleted/re-applied — format IDs nicely
+                    const names: Record<string, string> = {};
+                    for (const card of (res.cardFeedback ?? [])) {
+                        const match = card.activityId.match(/act-(\d+)/);
+                        names[card.activityId] = match ? `Activity ${match[1]}` : card.activityId;
+                    }
+                    setActivityNames(names);
                 }
-                setActivityNames(names);
-            } catch {
-                // Exercise may have been deleted/re-applied — format IDs nicely
-                const names: Record<string, string> = {};
-                for (const card of (res.cardFeedback ?? [])) {
-                    const match = card.activityId.match(/act-(\d+)/);
-                    names[card.activityId] = match ? `Activity ${match[1]}` : card.activityId;
-                }
-                setActivityNames(names);
+            }
+
+            // Set exercise title from API response
+            if (res.exerciseTitle && !exerciseTitle) {
+                setExerciseTitle(res.exerciseTitle);
             }
 
             // Fetch exercise title if not already set

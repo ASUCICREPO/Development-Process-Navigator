@@ -384,7 +384,33 @@ def get_attempt(principal: Principal, attempt_id: str) -> dict:
     resp = _t("Attempts").scan()  # small scale; refine with GSI if needed
     for a in resp.get("Items", []):
         if a["attemptId"] == attempt_id:
-            return _history_row(a, full=True)
+            row = _history_row(a, full=True)
+            # Enrich with activity titles from the version snapshot used at submission time
+            version_id = a.get("versionId")
+            exercise_id = a.get("exerciseId")
+            if version_id and exercise_id:
+                try:
+                    ex = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
+                    if ex:
+                        config_id = ex.get("configId", "")
+                        snap = _version_snapshot(version_id, config_id)
+                        activity_map = {act["activityId"]: act.get("title", act["activityId"])
+                                        for act in snap.get("activities", [])}
+                        row["activityNames"] = activity_map
+                except Exception:
+                    # If version lookup fails, try getting names from current exercise config
+                    try:
+                        ex = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
+                        if ex and ex.get("configId"):
+                            cfg = _t("Configurations").get_item(Key={"configId": ex["configId"]}).get("Item")
+                            if cfg:
+                                snap = json.loads(cfg.get("snapshot", "{}"))
+                                activity_map = {act["activityId"]: act.get("title", act["activityId"])
+                                                for act in snap.get("activities", [])}
+                                row["activityNames"] = activity_map
+                    except Exception:
+                        pass
+            return row
     raise NotFoundError("Attempt not found.")
 
 
@@ -454,6 +480,15 @@ def _history_row(a: dict, full: bool = False) -> dict:
     if full:
         row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
         row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
+        # Include exercise title
+        try:
+            ex = _t("Exercises").get_item(Key={"exerciseId": a["exerciseId"]}).get("Item")
+            if ex and ex.get("configId"):
+                cfg = _t("Configurations").get_item(Key={"configId": ex["configId"]}).get("Item")
+                if cfg:
+                    row["exerciseTitle"] = cfg.get("name", a["exerciseId"])
+        except Exception:
+            pass
     return row
 
 
