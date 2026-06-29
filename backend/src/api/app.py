@@ -627,6 +627,13 @@ def delete_exercise(principal: Principal, exercise_id: str) -> dict:
     return {"ok": True, "exerciseId": exercise_id}
 
 
+def remove_from_roster(principal: Principal, student_id: str) -> dict:
+    """Remove a student from this instructor's roster."""
+    _require_role(principal, Role.INSTRUCTOR)
+    _t("Enrollments").delete_item(Key={"instructorId": principal.user_id, "studentId": student_id})
+    return {"ok": True, "studentId": student_id}
+
+
 def create_join_code_endpoint(principal: Principal) -> dict:
     """Create a join code for this instructor."""
     _require_role(principal, Role.INSTRUCTOR)
@@ -739,6 +746,8 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 200, get_roster(principal)
     if method == "POST" and seg == ["roster", "add"]:
         return 200, add_student_to_roster(principal, body)
+    if method == "DELETE" and len(seg) == 2 and seg[0] == "roster":
+        return 200, remove_from_roster(principal, seg[1])
     if method == "POST" and seg == ["join-codes"]:
         return 200, create_join_code_endpoint(principal)
     if method == "GET" and seg == ["instructor", "stats"]:

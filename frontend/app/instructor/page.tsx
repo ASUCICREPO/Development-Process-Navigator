@@ -251,10 +251,10 @@ export default function InstructorDashboard() {
                         {menuOpen === ex.exerciseId && (
                           <div style={styles.menuDropdown}>
                             <button style={styles.menuItem} onClick={() => { setMenuOpen(null); window.location.href = `/instructor/exercises?edit=${ex.configId}`; }}>
-                              ✏️ Edit
+                              Edit
                             </button>
                             <button style={{ ...styles.menuItem, color: "#ef4444" }} onClick={() => deleteExercise(ex.exerciseId)}>
-                              🗑️ Delete
+                              Delete
                             </button>
                           </div>
                         )}

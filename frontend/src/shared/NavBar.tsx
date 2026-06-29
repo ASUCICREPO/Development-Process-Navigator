@@ -5,6 +5,7 @@ import { getRole, clearSession, getViewAs, setViewAs } from "./session";
 export const NavBar: React.FC = () => {
   const [role, setRole] = useState<string | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     const actualRole = getRole();
@@ -66,8 +67,42 @@ export const NavBar: React.FC = () => {
               </button>
             )}
           </div>
-          <div className="avatar" onClick={logout} title="Click to log out" style={{ cursor: "pointer" }}>
-            {initials}
+          <div style={{ position: "relative" }}>
+            <div
+              className="avatar"
+              onClick={() => setShowMenu(!showMenu)}
+              style={{ cursor: "pointer" }}
+            >
+              {initials}
+            </div>
+            {showMenu && (
+              <div style={{
+                position: "absolute", top: 44, right: 0, background: "#fff",
+                border: "1px solid #e5e7eb", borderRadius: 8, boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                zIndex: 200, minWidth: 160, overflow: "hidden",
+              }}>
+                <button
+                  onClick={() => { setShowMenu(false); window.location.href = role === "INSTRUCTOR" ? "/instructor/" : "/student/"; }}
+                  style={{
+                    display: "block", width: "100%", background: "none", border: "none",
+                    padding: "10px 16px", fontSize: 13, color: "#374151", fontWeight: 500,
+                    cursor: "pointer", textAlign: "left", borderBottom: "1px solid #f3f4f6",
+                  }}
+                >
+                  My Dashboard
+                </button>
+                <button
+                  onClick={logout}
+                  style={{
+                    display: "block", width: "100%", background: "none", border: "none",
+                    padding: "10px 16px", fontSize: 13, color: "#ef4444", fontWeight: 600,
+                    cursor: "pointer", textAlign: "left",
+                  }}
+                >
+                  Log out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

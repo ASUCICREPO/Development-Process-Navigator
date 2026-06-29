@@ -309,7 +309,13 @@ export default function RosterPage() {
                                     <td style={styles.td}>
                                         <div style={{ display: "flex", gap: 6 }}>
                                             <button style={styles.viewBtn} onClick={() => setViewStudent(s)}>View</button>
-                                            <button style={styles.deleteBtn}>🗑</button>
+                                            <button style={styles.deleteBtn} onClick={async () => {
+                                                if (!confirm(`Remove ${s.name} from your roster?`)) return;
+                                                try {
+                                                    await authed(`/roster/${s.id}`, "DELETE");
+                                                    setStudents((prev) => prev.filter((st) => st.id !== s.id));
+                                                } catch (e: any) { alert(e.message); }
+                                            }}>🗑</button>
                                         </div>
                                     </td>
                                 </tr>
