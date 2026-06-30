@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getRole, getToken, getViewAs } from "./session";
+import { getRole, getToken } from "./session";
 
 /**
  * Checks if the user is logged in and allowed to view the page.
@@ -12,43 +12,57 @@ export function useRoleGuard(required: "INSTRUCTOR" | "STUDENT"): boolean {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    const token = getToken();
-    const actualRole = getRole();
+    // Small delay to allow localStorage to sync after redirect
+    const check = () => {
+      const token = getToken();
+      const actualRole = getRole();
 
-    if (!token || !actualRole) {
+      if (!token || !actualRole) {
+        // Not logged in — redirect to login
+        window.location.href = "/";
+        return;
+      }
+
+      // Instructors can view any page
+      if (actualRole === "INSTRUCTOR") {
+        setAllowed(true);
+        return;
+      }
+
+      // Students can only access student pages
+      if (actualRole === "STUDENT" && required === "STUDENT") {
+        setAllowed(true);
+        return;
+      }
+
+      // Students trying to access instructor pages — show notification then redirect
+      if (actualRole === "STUDENT" && required === "INSTRUCTOR") {
+        showAccessDeniedNotification();
+        setTimeout(() => {
+          window.location.href = "/student/";
+        }, 2500);
+        return;
+      }
+
       window.location.href = "/";
-      return;
-    }
+    };
 
-    // Instructors can view any page
-    if (actualRole === "INSTRUCTOR") {
-      setAllowed(true);
-      return;
+    // Check immediately, if no token retry once after brief delay (handles post-login race)
+    const token = getToken();
+    if (token) {
+      check();
+    } else {
+      setTimeout(check, 100);
     }
-
-    // Students can only access student pages
-    if (actualRole === "STUDENT" && required === "STUDENT") {
-      setAllowed(true);
-      return;
-    }
-
-    // Students trying to access instructor pages — show notification then redirect
-    if (actualRole === "STUDENT" && required === "INSTRUCTOR") {
-      showAccessDeniedNotification();
-      setTimeout(() => {
-        window.location.href = "/student/";
-      }, 2500);
-      return;
-    }
-
-    window.location.href = "/";
   }, [required]);
 
   return allowed;
 }
 
 function showAccessDeniedNotification() {
-  // Create notification element
+  // Prevent duplicate notifications
+  if (document.getElementById("access-denied-toast")) return;
+
   const notification = document.createElement("div");
   notification.id = "access-denied-toast";
   notification.innerHTML = `
@@ -69,7 +83,6 @@ function showAccessDeniedNotification() {
     </div>
   `;
 
-  // Add animation keyframes
   const style = document.createElement("style");
   style.textContent = `
     @keyframes slideDown {
@@ -80,7 +93,6 @@ function showAccessDeniedNotification() {
   document.head.appendChild(style);
   document.body.appendChild(notification);
 
-  // Remove after redirect
   setTimeout(() => {
     notification.remove();
     style.remove();

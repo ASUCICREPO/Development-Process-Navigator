@@ -23,7 +23,12 @@ interface ScoreItem {
 
 export default function StudentDashboard() {
   const allowed = useRoleGuard("STUDENT");
-  const [displayName, setDisplayName] = useState("Student");
+  const [displayName, setDisplayName] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("pc_displayName") || "";
+    }
+    return "";
+  });
   const [personalBest, setPersonalBest] = useState<number>(0);
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { register, login, setSession, getRole, clearSession } from "../src/shared/session";
+import { register, login, setSession, getRole, clearSession, API_BASE } from "../src/shared/session";
 
 function decodeJwt(token: string): any {
   const part = token.split(".")[1];
@@ -18,6 +18,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [instructorCode, setInstructorCode] = useState("");
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [loggedInRole, setLoggedInRole] = useState<string | null>(
@@ -32,9 +33,20 @@ export default function Home() {
       const payload = decodeJwt(r.idToken);
       const userRole = payload["custom:role"] || "STUDENT";
       setSession(r.idToken, userRole, payload.sub);
-      // Store display name
-      const name = displayName || payload.name || payload.email || email.split("@")[0];
-      localStorage.setItem("pc_displayName", name);
+      // Fetch display name from backend
+      try {
+        const meRes = await fetch(`${API_BASE.replace(/\/$/, "")}/me`, {
+          headers: { Authorization: `Bearer ${r.idToken}` },
+        });
+        if (meRes.ok) {
+          const me = await meRes.json();
+          localStorage.setItem("pc_displayName", me.displayName || email.split("@")[0]);
+        } else {
+          localStorage.setItem("pc_displayName", displayName || email.split("@")[0]);
+        }
+      } catch {
+        localStorage.setItem("pc_displayName", displayName || email.split("@")[0]);
+      }
       setLoggedInRole(userRole);
       window.location.href = userRole === "INSTRUCTOR" ? "/instructor/" : "/student/";
     } catch (e: any) {
@@ -50,6 +62,7 @@ export default function Home() {
     try {
       const body: Record<string, unknown> = { email, password, displayName, role };
       if (role === "STUDENT" && joinCode) body.joinCode = joinCode;
+      if (role === "INSTRUCTOR") body.instructorCode = instructorCode;
       await register(body);
       localStorage.setItem("pc_displayName", displayName || email.split("@")[0]);
       await onLogin();
@@ -66,32 +79,11 @@ export default function Home() {
   }
 
   if (loggedInRole) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <div style={styles.logoSection}>
-            <div style={styles.logoRow}>
-              <img src="/images/asu-logo.png" alt="ASU W.P. Carey School of Business" style={{ height: 44 }} />
-            </div>
-          </div>
-          <h2 style={styles.title}>Development Process Navigator</h2>
-          <p style={{ textAlign: "center", color: "#6b7280", marginBottom: 24 }}>
-            Logged in as <strong>{loggedInRole}</strong>
-          </p>
-          <div style={{ display: "flex", gap: 12, flexDirection: "column" }}>
-            <button style={styles.primaryBtn} onClick={() => window.location.href = "/instructor/"}>
-              Instructor Dashboard
-            </button>
-            <button style={styles.secondaryBtn} onClick={() => window.location.href = "/student/"}>
-              Student Dashboard
-            </button>
-            <button style={styles.logoutBtn} onClick={onLogout}>
-              Log out
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    // Auto-redirect to dashboard
+    if (typeof window !== "undefined") {
+      window.location.href = loggedInRole === "INSTRUCTOR" ? "/instructor/" : "/student/";
+    }
+    return null;
   }
 
   return (
@@ -197,6 +189,20 @@ export default function Home() {
                     placeholder="e.g. ASU-2026"
                     style={styles.input}
                   />
+                </>
+              )}
+              {role === "INSTRUCTOR" && (
+                <>
+                  <label style={styles.label}>Instructor Access Code</label>
+                  <input
+                    value={instructorCode}
+                    onChange={(e) => setInstructorCode(e.target.value)}
+                    placeholder="Enter access code"
+                    style={styles.input}
+                  />
+                  <p style={styles.hint}>
+                    Contact your department administrator if you don&apos;t have a code.
+                  </p>
                 </>
               )}
             </>

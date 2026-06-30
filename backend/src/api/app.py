@@ -151,8 +151,14 @@ def register(body: dict) -> dict:
     display_name = body.get("displayName", email.split("@")[0] if email else "")
     role = body.get("role", "STUDENT")
     join_code = body.get("joinCode")
+    instructor_code = body.get("instructorCode", "")
     if role not in ("INSTRUCTOR", "STUDENT"):
         raise ValidationError("Role must be INSTRUCTOR or STUDENT.")
+    # Instructor registration requires a valid access code
+    INSTRUCTOR_ACCESS_CODE = os.environ.get("INSTRUCTOR_ACCESS_CODE", "MRED-2025")
+    if role == "INSTRUCTOR":
+        if not instructor_code or instructor_code.strip().upper() != INSTRUCTOR_ACCESS_CODE.upper():
+            raise ForbiddenError("Invalid instructor access code. Contact your department administrator.")
     if "@" not in email:
         raise ValidationError("Invalid email.")
     if len(password) < 8:
@@ -531,8 +537,8 @@ def get_roster(principal: Principal) -> dict:
     users_resp = _t("Users").scan()
     all_students = [u for u in users_resp.get("Items", []) if u.get("role") == "STUDENT"]
 
-    # If no enrollments, show all students (small scale)
-    student_ids = [e["studentId"] for e in enrollments] if enrollments else [u["userId"] for u in all_students]
+    # Only show enrolled students
+    student_ids = [e["studentId"] for e in enrollments]
 
     # Get exercises for this instructor
     ex_resp = _t("Exercises").scan()
@@ -787,7 +793,9 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         raise AppError("Authentication required.")
 
     if method == "GET" and seg == ["me"]:
-        return 200, {"userId": principal.user_id, "role": principal.role.value}
+        user = _t("Users").get_item(Key={"userId": principal.user_id}).get("Item")
+        display_name = user.get("displayName", "") if user else ""
+        return 200, {"userId": principal.user_id, "role": principal.role.value, "displayName": display_name, "email": user.get("email", "") if user else ""}
 
     if method == "GET" and seg == ["exercises"]:
         return 200, list_exercises(principal)
