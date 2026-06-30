@@ -11,6 +11,7 @@ const navItems = [
     { id: "roster", label: "Student Roster", icon: "👥", href: "/instructor/roster" },
     { id: "session", label: "Live Session", icon: "🔴", href: "/instructor/session" },
     { id: "results", label: "Results & History", icon: "📈", href: "/instructor/results" },
+    { id: "tutorial", label: "Help", icon: "❓", href: "/tutorial" },
 ];
 
 export const InstructorSidebar: React.FC<InstructorSidebarProps> = ({ activeItem = "dashboard" }) => {

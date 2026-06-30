@@ -50,6 +50,18 @@ export const NavBar: React.FC = () => {
 
       {role && (
         <div className="top-header-right">
+          <a
+            href="/tutorial"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 6,
+              padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#374151",
+              textDecoration: "none", cursor: "pointer",
+            }}
+            title="Help Center"
+          >
+            <span style={{ fontSize: 15 }}>?</span> Tutorial
+          </a>
           <span className="view-as-label">VIEW AS</span>
           <div className="role-toggle">
             <button

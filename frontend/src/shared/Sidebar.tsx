@@ -10,6 +10,7 @@ const navItems = [
     { id: "exercise", label: "Current Exercise", icon: "📝", href: "/student/exercise" },
     { id: "history", label: "My History", icon: "📋", href: "/student/history" },
     { id: "scores", label: "My Scores", icon: "🏆", href: "/student/scores" },
+    { id: "tutorial", label: "Help", icon: "❓", href: "/tutorial" },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeItem = "dashboard" }) => {
