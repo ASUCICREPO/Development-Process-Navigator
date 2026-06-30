@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE, getToken } from "../../../src/shared/session";
 import { InstructorSidebar } from "../../../src/shared/InstructorSidebar";
+import { InfoIcon } from "../../../src/shared/InfoIcon";
 import { useRoleGuard } from "../../../src/shared/useRoleGuard";
 
 interface Student {
@@ -191,7 +192,10 @@ export default function RosterPage() {
                                 <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 12 }}>Share this code with your students:</p>
                                 <div style={styles.codeDisplay}>{joinCode}</div>
                                 <div style={styles.codeActions}>
-                                    <button style={styles.copyBtn}>📋 Copy Link</button>
+                                    <button style={styles.copyBtn} onClick={() => {
+                                        navigator.clipboard.writeText(joinCode);
+                                        alert("Join code copied: " + joinCode);
+                                    }}>📋 Copy Code</button>
                                     <button style={styles.regenBtn} onClick={generateJoinCode}>↻ Regenerate</button>
                                 </div>
                             </>
@@ -267,7 +271,7 @@ export default function RosterPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                     <div>
                         <div style={styles.breadcrumb}>Instructor &gt; Roster</div>
-                        <h1 style={styles.pageTitle}>Student Roster</h1>
+                        <h1 style={styles.pageTitle}>Student Roster <InfoIcon tooltip="Manage your class roster. Add students via email invite (they must register first) or share a Join Code for self-enrollment." /></h1>
                     </div>
                     <button style={styles.addStudentBtn} onClick={() => setShowAddModal(true)}>+ Add Student</button>
                 </div>

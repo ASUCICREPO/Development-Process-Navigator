@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { api, getUserId } from "../../src/shared/session";
 import { Sidebar } from "../../src/shared/Sidebar";
+import { InfoIcon } from "../../src/shared/InfoIcon";
 import { useRoleGuard } from "../../src/shared/useRoleGuard";
 
 interface ExerciseItem {
@@ -157,7 +158,7 @@ export default function StudentDashboard() {
 
             {/* Exercises List */}
             <div className="exercises-card">
-              <h3>My Exercises</h3>
+              <h3>My Exercises <InfoIcon tooltip="These are exercises assigned by your instructor. Drag activity cards into the correct phase order to complete them." /></h3>
               {loading ? (
                 <p style={{ color: "var(--gray-500)", fontSize: 14 }}>Loading exercises...</p>
               ) : exercises.length === 0 ? (
@@ -216,7 +217,7 @@ export default function StudentDashboard() {
 
           {/* Recent Scores */}
           <div className="recent-scores-card">
-            <h3>Recent Scores</h3>
+            <h3>Recent Scores <InfoIcon tooltip="Your latest exercise scores. Higher scores mean better placement of activities in the correct phases." /></h3>
             {recentScores.length === 0 ? (
               <p style={{ color: "var(--gray-500)", fontSize: 13 }}>
                 No scores yet.

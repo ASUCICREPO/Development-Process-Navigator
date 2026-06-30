@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE, getToken } from "../../src/shared/session";
 import { InstructorSidebar } from "../../src/shared/InstructorSidebar";
+import { InfoIcon } from "../../src/shared/InfoIcon";
 import { useRoleGuard } from "../../src/shared/useRoleGuard";
 
 interface ExerciseCard {
@@ -177,7 +178,10 @@ export default function InstructorDashboard() {
               </button>
             </div>
 
-            <button style={styles.copyLinkBtn}>
+            <button style={styles.copyLinkBtn} onClick={() => {
+              navigator.clipboard.writeText(sessionCode);
+              alert("Session code copied: " + sessionCode);
+            }}>
               📋 Copy Join Link
             </button>
 
@@ -215,6 +219,7 @@ export default function InstructorDashboard() {
           <button style={styles.liveSessionBtn} onClick={openSessionModal}>
             Start Live Session
           </button>
+          <InfoIcon tooltip="Start a live session to run an exercise in real-time with your class. Share the session code with students." />
         </div>
 
         {/* Stats Row */}
@@ -238,7 +243,10 @@ export default function InstructorDashboard() {
           {/* Left: Exercises */}
           <div>
             <div style={styles.exercisesHeader}>
-              <h2 style={styles.sectionTitle}>My Exercises</h2>
+              <h2 style={styles.sectionTitle}>
+                My Exercises
+                <InfoIcon tooltip="Exercises are the activities you assign to students. Each exercise uses a configuration that defines the correct phase ordering." />
+              </h2>
               <button
                 style={styles.newExerciseBtn}
                 onClick={() => window.location.href = "/instructor/exercises/new"}
