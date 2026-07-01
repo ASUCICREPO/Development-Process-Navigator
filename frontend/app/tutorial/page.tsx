@@ -14,7 +14,8 @@ const instructorGuides: GuideItem[] = [
         title: "Getting Started as an Instructor",
         description: "Set up your account and create your first exercise.",
         steps: [
-            "Register with your ASU email and use the instructor access code (provided by your admin).",
+            "Register with your ASU email and select 'Instructor' as your role.",
+            "Enter the Instructor Access Code when prompted — this is provided by your department admin.",
             "After logging in, you'll land on the Instructor Dashboard.",
             "Click \"+ New Exercise\" to create your first development process exercise.",
         ],

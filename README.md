@@ -50,6 +50,20 @@ aidlc-docs/         AI-DLC documentation (design/specs; not application code)
 - AWS CLI configured with appropriate profile
 - AWS CDK CLI (`npm install -g aws-cdk`)
 
+### Instructor Access Code
+Instructors must enter an access code during registration to prevent unauthorized instructor accounts. The code is set as a Lambda environment variable (`INSTRUCTOR_ACCESS_CODE`) in the CDK stack. Current value: `MRED-2026`.
+
+**To change the access code:**
+1. Open `infrastructure/lib/processcanvas-stack.ts`
+2. Find `INSTRUCTOR_ACCESS_CODE: "MRED-2026"` and change the value
+3. Also update the fallback default in `backend/src/api/app.py` (`os.environ.get("INSTRUCTOR_ACCESS_CODE", "MRED-2026")`)
+4. Deploy:
+```bash
+cd infrastructure
+cdk deploy --profile sandbox2025
+```
+5. Share the new code privately with instructors (email, in-person, etc.)
+
 ### Frontend
 ```bash
 cd frontend

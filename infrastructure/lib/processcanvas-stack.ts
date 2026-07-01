@@ -136,7 +136,7 @@ export class ProcessCanvasStack extends Stack {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         ASSET_BUCKET: assetBucket.bucketName,
-        INSTRUCTOR_ACCESS_CODE: "MRED-2025",
+        INSTRUCTOR_ACCESS_CODE: "MRED-2026",
         ...Object.fromEntries(allTables.map((t) => [`TABLE_${t.node.id.toUpperCase()}`, t.tableName])),
       },
     });

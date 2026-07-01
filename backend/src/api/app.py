@@ -155,7 +155,7 @@ def register(body: dict) -> dict:
     if role not in ("INSTRUCTOR", "STUDENT"):
         raise ValidationError("Role must be INSTRUCTOR or STUDENT.")
     # Instructor registration requires a valid access code
-    INSTRUCTOR_ACCESS_CODE = os.environ.get("INSTRUCTOR_ACCESS_CODE", "MRED-2025")
+    INSTRUCTOR_ACCESS_CODE = os.environ.get("INSTRUCTOR_ACCESS_CODE", "MRED-2026")
     if role == "INSTRUCTOR":
         if not instructor_code or instructor_code.strip().upper() != INSTRUCTOR_ACCESS_CODE.upper():
             raise ForbiddenError("Invalid instructor access code. Contact your department administrator.")
