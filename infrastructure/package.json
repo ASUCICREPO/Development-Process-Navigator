@@ -1,20 +1,22 @@
 {
   "name": "processcanvas-infrastructure",
   "version": "0.1.0",
-  "bin": { "processcanvas": "bin/processcanvas.js" },
+  "bin": {
+    "processcanvas": "bin/processcanvas.js"
+  },
   "scripts": {
     "build": "tsc",
     "cdk": "cdk"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "aws-cdk": "^2.140.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.0",
-    "@types/node": "^20.0.0"
+    "typescript": "^5.4.0"
   },
   "dependencies": {
+    "@aws-cdk/aws-amplify-alpha": "^2.259.0-alpha.0",
     "aws-cdk-lib": "^2.140.0",
-    "constructs": "^10.3.0",
-    "@aws-cdk/aws-amplify-alpha": "^2.140.0-alpha.0"
+    "constructs": "^10.3.0"
   }
 }

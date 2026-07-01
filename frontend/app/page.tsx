@@ -167,6 +167,9 @@ export default function Home() {
             placeholder="••••••••"
             style={styles.input}
           />
+          <p style={styles.hint}>
+            Password: min 8 characters, include a letter and number.
+          </p>
 
           {mode === "register" && (
             <>
@@ -177,9 +180,7 @@ export default function Home() {
                 placeholder="Your name"
                 style={styles.input}
               />
-              <p style={styles.hint}>
-                Password: min 8 characters, include a letter and number.
-              </p>
+
               {role === "STUDENT" && (
                 <>
                   <label style={styles.label}>Join Code (optional)</label>
