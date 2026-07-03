@@ -7,6 +7,8 @@ flow. Supports self-paced and live-classroom use.
 
 ## Architecture (serverless on AWS)
 
+![Architecture Diagram](architecture.drawio.png)
+
 | Layer | Technology | Location |
 |-------|-----------|----------|
 | Frontend | Next.js 14 (React/TypeScript) on AWS Amplify Hosting | `frontend/` |
