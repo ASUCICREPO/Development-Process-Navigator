@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getRole } from "../../src/shared/session";
 
 type Tab = "instructor" | "student";
 
@@ -126,8 +127,22 @@ const studentGuides: GuideItem[] = [
 ];
 
 export default function TutorialPage() {
-    const [activeTab, setActiveTab] = useState<Tab>("instructor");
+    const [activeTab, setActiveTab] = useState<Tab>("student");
     const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+    const [role, setRole] = useState<string | null>(null);
+
+    useEffect(() => {
+        const userRole = getRole();
+        setRole(userRole);
+        // Instructors default to instructor tab, students only see student tab
+        if (userRole === "INSTRUCTOR") {
+            setActiveTab("instructor");
+        } else {
+            setActiveTab("student");
+        }
+    }, []);
+
+    const isInstructor = role === "INSTRUCTOR";
 
     const guides = activeTab === "instructor" ? instructorGuides : studentGuides;
 
@@ -145,13 +160,16 @@ export default function TutorialPage() {
             </div>
 
             {/* Tab Switcher */}
+            {/* Tab Switcher - Instructors see both tabs, Students see only student tab */}
             <div style={styles.tabRow}>
-                <button
-                    style={activeTab === "instructor" ? styles.tabActive : styles.tabInactive}
-                    onClick={() => { setActiveTab("instructor"); setExpandedIndex(0); }}
-                >
-                    🎓 Instructor Guide
-                </button>
+                {isInstructor && (
+                    <button
+                        style={activeTab === "instructor" ? styles.tabActive : styles.tabInactive}
+                        onClick={() => { setActiveTab("instructor"); setExpandedIndex(0); }}
+                    >
+                        🎓 Instructor Guide
+                    </button>
+                )}
                 <button
                     style={activeTab === "student" ? styles.tabActive : styles.tabInactive}
                     onClick={() => { setActiveTab("student"); setExpandedIndex(0); }}
