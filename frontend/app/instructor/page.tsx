@@ -353,6 +353,15 @@ export default function InstructorDashboard() {
                       <span style={styles.typeBadge}>{ex.type}</span>
                       <span style={styles.versionBadge}>v{ex.version}</span>
                     </div>
+                    <p style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4, fontFamily: "monospace", wordBreak: "break-all" }}>
+                      ID: {ex.exerciseId.slice(0, 12)}...
+                      <button
+                        style={{ background: "none", border: "none", color: "#8C1D40", cursor: "pointer", fontSize: 11, fontWeight: 600, marginLeft: 4 }}
+                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(ex.exerciseId); alert("Exercise ID copied!"); }}
+                      >
+                        Copy
+                      </button>
+                    </p>
                     <p style={styles.enrolledText}>{ex.enrolledCount} students enrolled</p>
                     <div style={styles.cardActions}>
                       <button

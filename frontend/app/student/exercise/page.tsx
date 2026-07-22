@@ -13,6 +13,8 @@ export default function ExercisePage() {
     const [started, setStarted] = useState(false);
     const [err, setErr] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [availableExercises, setAvailableExercises] = useState<any[]>([]);
+    const [loadingList, setLoadingList] = useState(true);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -21,7 +23,16 @@ export default function ExercisePage() {
             setExerciseId(id);
             loadExercise(id);
         }
+        loadAvailableExercises();
     }, []);
+
+    async function loadAvailableExercises() {
+        try {
+            const res: any = await api().listExercises();
+            setAvailableExercises(res.exercises ?? res ?? []);
+        } catch { }
+        setLoadingList(false);
+    }
 
     async function loadExercise(id?: string) {
         const targetId = id || exerciseId;
@@ -92,38 +103,108 @@ export default function ExercisePage() {
         );
     }
 
-    // No exercise loaded — show ID input with sidebar
+    // No exercise loaded — show available exercises + ID input with sidebar
     return (
         <div style={{ display: "flex" }}>
             <Sidebar activeItem="exercise" />
             <main className="main-content">
                 <div style={styles.introWrapper}>
-                    <div style={styles.introCard}>
-                        <h1 style={{ ...styles.title, fontSize: 20 }}>Load an Exercise</h1>
-                        <p style={styles.description}>
-                            Enter the Exercise ID provided by your instructor to begin.
-                        </p>
-                        <div style={{ marginTop: 16 }}>
-                            <input
-                                data-testid="exercise-id-input"
-                                value={exerciseId}
-                                onChange={(e) => setExerciseId(e.target.value)}
-                                placeholder="Enter exercise ID..."
-                                style={styles.input}
-                            />
-                        </div>
+                    <div style={{ ...styles.introCard, maxWidth: 600 }}>
+                        {/* Available Exercises */}
+                        {loadingList ? (
+                            <p style={{ color: "#6b7280", fontSize: 14 }}>Loading exercises...</p>
+                        ) : availableExercises.length > 0 ? (
+                            <>
+                                <h1 style={{ ...styles.title, fontSize: 20 }}>My Exercises</h1>
+                                <p style={styles.description}>
+                                    Select an exercise to begin, or enter an Exercise ID below.
+                                </p>
+                                <div style={{ textAlign: "left" as const, marginBottom: 24 }}>
+                                    {availableExercises.map((ex: any) => (
+                                        <div
+                                            key={ex.exerciseId}
+                                            style={{
+                                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                                padding: "12px 16px", borderRadius: 8, border: "1px solid #e5e7eb",
+                                                marginBottom: 8, background: "#fafafa",
+                                            }}
+                                        >
+                                            <div>
+                                                <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+                                                    {ex.title || ex.exerciseId}
+                                                </div>
+                                                <div style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace" }}>
+                                                    {ex.exerciseId.slice(0, 16)}...
+                                                </div>
+                                            </div>
+                                            <button
+                                                style={{
+                                                    background: "#8C1D40", color: "#fff", border: "none",
+                                                    borderRadius: 6, padding: "8px 16px", fontSize: 13,
+                                                    fontWeight: 600, cursor: "pointer",
+                                                }}
+                                                onClick={() => { setExerciseId(ex.exerciseId); loadExercise(ex.exerciseId); }}
+                                            >
+                                                Start
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 20 }}>
+                                    <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+                                        Or enter an Exercise ID manually:
+                                    </p>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                        <input
+                                            data-testid="exercise-id-input"
+                                            value={exerciseId}
+                                            onChange={(e) => setExerciseId(e.target.value)}
+                                            placeholder="Enter exercise ID..."
+                                            style={{ ...styles.input, flex: 1 }}
+                                        />
+                                        <button
+                                            style={{
+                                                ...styles.beginBtn, width: "auto", padding: "12px 20px", fontSize: 14,
+                                                opacity: !exerciseId || loading ? 0.5 : 1,
+                                                cursor: !exerciseId || loading ? "not-allowed" : "pointer",
+                                            }}
+                                            onClick={() => loadExercise()}
+                                            disabled={!exerciseId || loading}
+                                        >
+                                            {loading ? "..." : "Go"}
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h1 style={{ ...styles.title, fontSize: 20 }}>Load an Exercise</h1>
+                                <p style={styles.description}>
+                                    Enter the Exercise ID provided by your instructor to begin.
+                                </p>
+                                <div style={{ marginTop: 16 }}>
+                                    <input
+                                        data-testid="exercise-id-input"
+                                        value={exerciseId}
+                                        onChange={(e) => setExerciseId(e.target.value)}
+                                        placeholder="Enter exercise ID..."
+                                        style={styles.input}
+                                    />
+                                </div>
+                                <button
+                                    style={{
+                                        ...styles.beginBtn,
+                                        opacity: !exerciseId || loading ? 0.5 : 1,
+                                        cursor: !exerciseId || loading ? "not-allowed" : "pointer",
+                                    }}
+                                    onClick={() => loadExercise()}
+                                    disabled={!exerciseId || loading}
+                                >
+                                    {loading ? "Loading..." : "Load Exercise"}
+                                </button>
+                            </>
+                        )}
                         {err && <p style={{ color: "#ef4444", marginTop: 8, fontSize: 14 }}>{err}</p>}
-                        <button
-                            style={{
-                                ...styles.beginBtn,
-                                opacity: !exerciseId || loading ? 0.5 : 1,
-                                cursor: !exerciseId || loading ? "not-allowed" : "pointer",
-                            }}
-                            onClick={() => loadExercise()}
-                            disabled={!exerciseId || loading}
-                        >
-                            {loading ? "Loading..." : "Load Exercise"}
-                        </button>
                     </div>
                 </div>
             </main>
