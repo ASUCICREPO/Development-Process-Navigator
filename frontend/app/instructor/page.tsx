@@ -100,6 +100,7 @@ export default function InstructorDashboard() {
   const [sessionCode, setSessionCode] = useState("");
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [assignExercise, setAssignExercise] = useState<ExerciseCard | null>(null);
 
   function generateCode(): string {
     const words = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"];
@@ -209,6 +210,64 @@ export default function InstructorDashboard() {
         </div>
       )}
 
+      {/* Assign Exercise Modal */}
+      {assignExercise && (
+        <div style={styles.overlay} onClick={() => setAssignExercise(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Assign Exercise</h2>
+              <button style={styles.closeBtn} onClick={() => setAssignExercise(null)}>×</button>
+            </div>
+
+            <p style={{ fontSize: 14, color: "#374151", marginBottom: 16 }}>
+              Share this exercise with your students. All enrolled students can see exercises from their instructor automatically.
+            </p>
+
+            <label style={styles.modalLabel}>Exercise</label>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginBottom: 16 }}>
+              {assignExercise.title}
+            </div>
+
+            <label style={styles.modalLabel}>Exercise ID (students can use this to access directly)</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <code style={{
+                flex: 1, padding: "10px 12px", background: "#f3f4f6", borderRadius: 6,
+                fontSize: 13, fontFamily: "monospace", color: "#374151", border: "1px solid #e5e7eb",
+                wordBreak: "break-all",
+              }}>
+                {assignExercise.exerciseId}
+              </code>
+              <button
+                style={{ ...styles.newExerciseBtn, padding: "10px 14px", fontSize: 12 }}
+                onClick={() => {
+                  navigator.clipboard.writeText(assignExercise.exerciseId);
+                  alert("Exercise ID copied!");
+                }}
+              >
+                📋 Copy
+              </button>
+            </div>
+
+            <label style={styles.modalLabel}>How students access this exercise</label>
+            <ol style={{ fontSize: 13, color: "#374151", lineHeight: 1.8, paddingLeft: 20, marginBottom: 20 }}>
+              <li>Students enrolled in your roster will see this exercise automatically on their dashboard.</li>
+              <li>Or share the Exercise ID above — students can enter it to start the exercise directly.</li>
+              <li>Make sure students are enrolled first (via Roster → Add Student).</li>
+            </ol>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button style={styles.cancelBtn} onClick={() => setAssignExercise(null)}>Close</button>
+              <button
+                style={styles.startBtn}
+                onClick={() => { window.location.href = "/instructor/roster"; }}
+              >
+                Go to Roster
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="main-content">
         {/* Breadcrumb & Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
@@ -302,7 +361,7 @@ export default function InstructorDashboard() {
                       >
                         Edit
                       </button>
-                      <button style={styles.assignBtn}>Assign</button>
+                      <button style={styles.assignBtn} onClick={() => setAssignExercise(ex)}>Assign</button>
                     </div>
                   </div>
                 ))}
