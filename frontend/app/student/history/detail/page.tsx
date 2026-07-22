@@ -181,9 +181,12 @@ export default function HistoryDetailPage() {
                 phaseScores[pp.phase] = { earned: 0, max: 0 };
             }
             phaseScores[pp.phase].max += pp.weight;
-            if (pp.status === "CORRECT" || pp.status === "PARTIAL") {
+            if (pp.status === "CORRECT") {
                 phaseGroups[pp.phase].correct.push(name);
-                phaseScores[pp.phase].earned += pp.status === "CORRECT" ? pp.weight : Math.round(pp.weight * 0.5);
+                phaseScores[pp.phase].earned += pp.weight;
+            } else if (pp.status === "PARTIAL") {
+                phaseGroups[pp.phase].correct.push(`${name} (partial credit)`);
+                phaseScores[pp.phase].earned += pp.weight;
             } else {
                 const actualPhases = card.placedPhases.filter((p) => p !== pp.phase);
                 phaseGroups[pp.phase].incorrect.push({
@@ -226,7 +229,7 @@ export default function HistoryDetailPage() {
                     const score = phaseScores[phase];
                     const pct = score.max > 0 ? Math.round((score.earned / score.max) * 100) : 0;
                     const color = getPhaseColor(phase);
-                    const allCorrect = group.incorrect.length === 0 && group.correct.length > 0;
+                    const allCorrect = group.incorrect.length === 0 && group.correct.length > 0 && pct === 100;
 
                     return (
                         <div key={phase} style={styles.phaseSection}>
@@ -236,8 +239,13 @@ export default function HistoryDetailPage() {
                             </div>
                             {group.correct.map((n, i) => (
                                 <div key={`c-${i}`} style={styles.resultRow}>
-                                    <span style={styles.checkMark}>✓</span>
-                                    <span style={styles.resultText}>{n}</span>
+                                    <span style={n.includes("(partial credit)") ? styles.partialMark : styles.checkMark}>
+                                        {n.includes("(partial credit)") ? "◐" : "✓"}
+                                    </span>
+                                    <span style={styles.resultText}>{n.replace(" (partial credit)", "")}</span>
+                                    {n.includes("(partial credit)") && (
+                                        <span style={{ fontSize: 11, color: "#f97316", marginLeft: 6 }}>(partial credit)</span>
+                                    )}
                                 </div>
                             ))}
                             {allCorrect && (
@@ -334,6 +342,7 @@ const styles: Record<string, React.CSSProperties> = {
         padding: "10px 16px", borderBottom: "1px solid #f3f4f6",
     },
     checkMark: { color: "#16a34a", fontWeight: 700, fontSize: 15, width: 18 },
+    partialMark: { color: "#f97316", fontWeight: 700, fontSize: 15, width: 18 },
     crossMark: { color: "#ef4444", fontWeight: 700, fontSize: 15, width: 18 },
     resultText: { fontSize: 14, color: "#374151" },
     reflectionCard: {
