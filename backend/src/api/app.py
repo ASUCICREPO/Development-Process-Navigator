@@ -52,13 +52,37 @@ def principal_from_event(event) -> Principal | None:
     return Principal(user_id=claims.get("sub", ""), role=role_enum)
 
 
+# ---- Custom phase support --------------------------------------------------
+
+def _make_custom_phase(name: str):
+    """Return a Phase-compatible object for a custom (non-enum) phase name.
+
+    Extends the Phase enum dynamically so the scoring module can use it as a dict key.
+    Safe because Phase is str+Enum and Python enums allow runtime extension this way.
+    """
+    if name in Phase._value2member_map_:
+        return Phase._value2member_map_[name]
+    new_member = str.__new__(Phase, name)
+    new_member._name_ = name.upper().replace(" ", "_").replace("-", "_")
+    new_member._value_ = name
+    Phase._value2member_map_[name] = new_member
+    Phase._member_map_[new_member._name_] = new_member
+    return new_member
+
+
 # ---- Scoring config from a stored snapshot ---------------------------------
 
 def _config_from_snapshot(snapshot: dict) -> sc.Configuration:
     weights: dict[str, dict[Phase, int]] = {}
     for m in snapshot.get("mappings", []):
         aid = m["activityId"]
-        weights.setdefault(aid, {})[Phase[m["phase"]]] = int(m["weight"])
+        phase_str = m["phase"]
+        try:
+            phase_obj = Phase[phase_str]
+        except KeyError:
+            # Custom phase — register it dynamically
+            phase_obj = _make_custom_phase(phase_str)
+        weights.setdefault(aid, {})[phase_obj] = int(m["weight"])
     activities = [sc.ActivityConfig(a["activityId"], weights.get(a["activityId"], {}))
                   for a in snapshot.get("activities", [])]
     return sc.Configuration(activities=activities)
@@ -317,7 +341,7 @@ def get_exercise(principal: Principal, exercise_id: str) -> dict:
     }
 
 
-def _placements_from_body(body: dict) -> list[ExPlacement]:
+def _placements_from_body(body: dict, valid_phases: set[str] | None = None) -> list[ExPlacement]:
     placements = body.get("placements", {})
     result = []
     for aid, phs in placements.items():
@@ -326,16 +350,33 @@ def _placements_from_body(body: dict) -> list[ExPlacement]:
             try:
                 parsed.add(Phase[p])
             except KeyError:
-                raise ValidationError(f"Invalid phase '{p}' for activity '{aid}'.")
+                # Custom phase name (e.g. "Pre-Development") from an exercise with non-standard phases.
+                # Accept it if it's in the exercise's own phase list, then register it dynamically.
+                if valid_phases is not None and p in valid_phases:
+                    parsed.add(_make_custom_phase(p))
+                else:
+                    raise ValidationError(f"Invalid phase '{p}' for activity '{aid}'.")
         result.append(ExPlacement(aid, parsed))
     return result
+
+
+def _exercise_valid_phases(exercise_id: str) -> set[str]:
+    """Return the set of valid phase names for this exercise from its snapshot."""
+    try:
+        ex = _exercise_record(exercise_id)
+        snap = _version_snapshot(ex["versionId"], ex["configId"])
+        phases = snap.get("phases", [])
+        return set(phases)
+    except Exception:
+        return set()
 
 
 def save_placements(principal: Principal, exercise_id: str, body: dict) -> dict:
     state = _load_state(exercise_id, principal.user_id)
     if state.locked:
         raise ConflictError("Exercise is locked.")
-    state.placements = _placements_from_body(body)
+    valid_phases = _exercise_valid_phases(exercise_id)
+    state.placements = _placements_from_body(body, valid_phases)
     _save_state(state)
     return {"ok": True}
 
@@ -343,7 +384,8 @@ def save_placements(principal: Principal, exercise_id: str, body: dict) -> dict:
 def submit(principal: Principal, exercise_id: str, body: dict) -> dict:
     state = _load_state(exercise_id, principal.user_id)
     if body.get("placements"):
-        state.placements = _placements_from_body(body)
+        valid_phases = _exercise_valid_phases(exercise_id)
+        state.placements = _placements_from_body(body, valid_phases)
     attempt = _exercise_service().submit(state)
     _save_state(state)
     return _attempt_view(attempt)
@@ -351,7 +393,8 @@ def submit(principal: Principal, exercise_id: str, body: dict) -> dict:
 
 def verify(principal: Principal, exercise_id: str, body: dict) -> dict:
     state = _load_state(exercise_id, principal.user_id)
-    revised = _placements_from_body(body)
+    valid_phases = _exercise_valid_phases(exercise_id)
+    revised = _placements_from_body(body, valid_phases)
     _exercise_service().verify(state, revised)
     _save_state(state)
     return {"ok": True, "placements": {p.activity_id: sorted(ph.value for ph in p.phases)
@@ -360,7 +403,8 @@ def verify(principal: Principal, exercise_id: str, body: dict) -> dict:
 
 def resubmit(principal: Principal, exercise_id: str, body: dict) -> dict:
     state = _load_state(exercise_id, principal.user_id)
-    revised = _placements_from_body(body) if body.get("placements") else None
+    valid_phases = _exercise_valid_phases(exercise_id)
+    revised = _placements_from_body(body, valid_phases) if body.get("placements") else None
     attempt = _exercise_service().resubmit(state, revised)
     _save_state(state)
     return _attempt_view(attempt)
