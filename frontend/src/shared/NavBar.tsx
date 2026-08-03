@@ -1,40 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { getRole, clearSession, getViewAs, setViewAs } from "./session";
+import { getRole, clearSession } from "./session";
 
 export const NavBar: React.FC = () => {
   const [role, setRole] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     const actualRole = getRole();
     setRole(actualRole);
-    // Determine which view we're in based on URL
-    if (typeof window !== "undefined") {
-      const path = window.location.pathname;
-      if (path.startsWith("/student")) {
-        setViewing("STUDENT");
-      } else if (path.startsWith("/instructor")) {
-        setViewing("INSTRUCTOR");
-      } else {
-        setViewing(actualRole);
-      }
-    }
   }, []);
 
   function logout() {
     clearSession();
     window.location.href = "/";
-  }
-
-  function switchView(newView: string) {
-    setViewAs(newView as "INSTRUCTOR" | "STUDENT");
-    if (newView === "INSTRUCTOR") {
-      window.location.href = "/instructor/";
-    } else {
-      window.location.href = "/student/";
-    }
   }
 
   const initials = role ? (role === "INSTRUCTOR" ? "I" : "S") : "";
@@ -62,23 +41,6 @@ export const NavBar: React.FC = () => {
           >
             <span style={{ fontSize: 15 }}>?</span> Tutorial
           </a>
-          <span className="view-as-label">VIEW AS</span>
-          <div className="role-toggle">
-            <button
-              className={viewing === "STUDENT" ? "active-student" : "inactive"}
-              onClick={() => switchView("STUDENT")}
-            >
-              Student
-            </button>
-            {role === "INSTRUCTOR" && (
-              <button
-                className={viewing === "INSTRUCTOR" ? "active-instructor" : "inactive"}
-                onClick={() => switchView("INSTRUCTOR")}
-              >
-                Instructor
-              </button>
-            )}
-          </div>
           <div style={{ position: "relative" }}>
             <div
               className="avatar"
