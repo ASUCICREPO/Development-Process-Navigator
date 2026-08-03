@@ -70,18 +70,23 @@ def _make_custom_phase(name: str):
     return new_member
 
 
+def _resolve_phase(name: str):
+    """Resolve a phase name string to a Phase enum member, registering custom phases as needed."""
+    if name in Phase._value2member_map_:
+        return Phase._value2member_map_[name]
+    try:
+        return Phase[name]
+    except KeyError:
+        return _make_custom_phase(name)
+
+
 # ---- Scoring config from a stored snapshot ---------------------------------
 
 def _config_from_snapshot(snapshot: dict) -> sc.Configuration:
     weights: dict[str, dict[Phase, int]] = {}
     for m in snapshot.get("mappings", []):
         aid = m["activityId"]
-        phase_str = m["phase"]
-        try:
-            phase_obj = Phase[phase_str]
-        except KeyError:
-            # Custom phase — register it dynamically
-            phase_obj = _make_custom_phase(phase_str)
+        phase_obj = _resolve_phase(m["phase"])
         weights.setdefault(aid, {})[phase_obj] = int(m["weight"])
     activities = [sc.ActivityConfig(a["activityId"], weights.get(a["activityId"], {}))
                   for a in snapshot.get("activities", [])]
@@ -149,8 +154,10 @@ def _load_state(exercise_id: str, student_id: str) -> StudentExerciseState:
     state = StudentExerciseState(exercise_id=exercise_id, student_id=student_id)
     if item:
         placements = json.loads(item.get("placements", "{}"))
-        state.placements = [ExPlacement(aid, {Phase[p] for p in phs})
-                            for aid, phs in placements.items()]
+        state.placements = [
+            ExPlacement(aid, {_resolve_phase(p) for p in phs})
+            for aid, phs in placements.items()
+        ]
         state.attempt_count = int(item.get("attemptCount", 0))
         state.locked = bool(item.get("locked", False))
     return state
