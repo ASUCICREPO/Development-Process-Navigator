@@ -57,6 +57,8 @@ export const ExerciseBoard: React.FC<Props> = ({ api, exercise }) => {
   const [dragOver, setDragOver] = useState<Phase | "pool" | null>(null);
   const [activeFilter, setActiveFilter] = useState<"All" | "People" | "Task" | "Test">("All");
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const dragging = useRef<{ activityId: string; fromPhase: Phase | null } | null>(null);
 
   const placedCount = useMemo(
@@ -135,15 +137,23 @@ export const ExerciseBoard: React.FC<Props> = ({ api, exercise }) => {
   }
 
   async function onSubmit() {
-    if (attemptCount === 0) {
-      const fb = (await api.submit(exercise.exerciseId, placements)) as FeedbackView;
-      setFeedback(fb);
-      setAttemptCount(1);
-    } else {
-      const fb = (await api.resubmit(exercise.exerciseId, placements)) as FeedbackView;
-      setFeedback(fb);
-      setAttemptCount(2);
-      setLocked(true);
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (attemptCount === 0) {
+        const fb = (await api.submit(exercise.exerciseId, placements)) as FeedbackView;
+        setFeedback(fb);
+        setAttemptCount(1);
+      } else {
+        const fb = (await api.resubmit(exercise.exerciseId, placements)) as FeedbackView;
+        setFeedback(fb);
+        setAttemptCount(2);
+        setLocked(true);
+      }
+    } catch (e: any) {
+      setSubmitError(e.message || "Submission failed. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -161,16 +171,31 @@ export const ExerciseBoard: React.FC<Props> = ({ api, exercise }) => {
           <button
             style={{
               ...styles.submitBtn,
-              opacity: isComplete ? 1 : 0.5,
-              cursor: isComplete ? "pointer" : "not-allowed",
+              opacity: (isComplete && !submitting) ? 1 : 0.5,
+              cursor: (isComplete && !submitting) ? "pointer" : "not-allowed",
             }}
             onClick={onSubmit}
-            disabled={!isComplete || locked}
+            disabled={!isComplete || locked || submitting}
           >
-            {attemptCount === 0 ? "Submit" : locked ? "Submitted" : "Resubmit"}
+            {submitting ? "Submitting..." : attemptCount === 0 ? "Submit" : locked ? "Submitted" : "Resubmit"}
           </button>
         </div>
       </div>
+
+      {/* Submit error */}
+      {submitError && (
+        <div style={{
+          background: "#fef2f2", borderBottom: "1px solid #fecaca",
+          padding: "10px 24px", color: "#dc2626", fontSize: 13, fontWeight: 500,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span>⚠️ {submitError}</span>
+          <button
+            onClick={() => setSubmitError(null)}
+            style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontWeight: 700, fontSize: 16 }}
+          >×</button>
+        </div>
+      )}
 
       {/* Main board area */}
       <div style={styles.boardLayout}>
