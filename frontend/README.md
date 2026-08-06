@@ -1,85 +1,99 @@
-# ProcessCanvas Frontend (Next.js)
+# ProcessCanvas Frontend (Next.js 14)
 
-Next.js 14 (React/TypeScript) SPA for the Instructor and Student experiences, hosted on AWS Amplify
-Hosting. The authoritative backend is the separate Python API (REST) + WebSocket API.
+Next.js 14 (React/TypeScript) SPA for the Instructor and Student experiences, hosted on AWS Amplify Hosting as a static export. All business logic, scoring, and auth live in the Python backend.
 
 ## Structure
+
 ```
-app/                    Next.js App Router pages
-  instructor/           Instructor-facing pages
-    page.tsx              Dashboard
-    exercises/            Exercise management & creation
-    roster/               Student roster management
-    session/              Live session host view
-    results/              Results & history viewer
-  student/              Student-facing pages
-    page.tsx              Dashboard
-    exercise/             Drag-and-drop exercise board
-    history/              Attempt history + detail view
-    scores/               Score overview
-  tutorial/             Help Center (role-tabbed guides)
-    page.tsx
+app/
+├── page.tsx                  Login / Register (public)
+├── layout.tsx                Root layout: NavBar + footer
+├── instructor/
+│   ├── page.tsx              Dashboard (exercises, stats, assign modal)
+│   ├── exercises/            Exercise creation, weight matrix editor
+│   ├── roster/               Student roster (invite / join code)
+│   ├── session/              Live session host view
+│   └── results/              Class results, score trends, CSV export
+└── student/
+    ├── page.tsx              Student dashboard
+    ├── exercise/             Drag-and-drop ExerciseBoard
+    ├── history/              Attempt history + per-card detail
+    └── scores/               Score overview
 
-src/
-  shared/               Shared components & utilities
-    NavBar.tsx            Top header bar (logo, role toggle, Tutorial button, avatar menu)
-    Sidebar.tsx           Student sidebar navigation
-    InstructorSidebar.tsx Instructor sidebar navigation
-    InfoIcon.tsx          Reusable tooltip info icon component (ⓘ)
-    apiClient.ts          REST API client
-    session.ts            Auth token & session management
-    useRoleGuard.ts       Role-based route guard hook
+src/shared/
+├── NavBar.tsx                Top header (Tutorial button, avatar menu)
+├── Sidebar.tsx               Student sidebar navigation
+├── InstructorSidebar.tsx     Instructor sidebar navigation
+├── InfoIcon.tsx              Reusable tooltip component (ⓘ)
+├── apiClient.ts              REST API client (typed)
+├── session.ts                Auth token, session helpers, role storage
+└── useRoleGuard.ts           Role-based route guard hook
 
-public/
-  images/               Static assets (ASU logo, etc.)
+app/tutorial/
+└── page.tsx                  Help Center (accordion guides, role-tabbed)
 ```
 
-## Develop
+## Dev
+
 ```bash
 npm install
-npm run dev       # starts Next.js dev server at http://localhost:3000
-npm run build     # production static export (output: out/)
-npm run lint      # ESLint
-npm run test      # Vitest
+npm run dev        # http://localhost:3000
+npm run build      # production static export → out/
+npm run lint
+npm run test       # Vitest
 ```
-
-## Key Components
-
-### Help System
-- **Tutorial Page** (`/tutorial`): Accordion-style guides with separate Instructor and Student tabs
-- **InfoIcon** (`src/shared/InfoIcon.tsx`): Drop-in tooltip component. Usage:
-  ```tsx
-  import { InfoIcon } from "../src/shared/InfoIcon";
-  <InfoIcon tooltip="Explanation text shown on hover" />
-  ```
-- **Tutorial Button**: In the NavBar (top-right), visible when logged in
-- **Help Link**: In both sidebars as a nav item
-
-### Navigation
-- Top NavBar: ASU branding, app title, role toggle (Student/Instructor), Tutorial button, avatar menu
-- Sidebars: Role-specific navigation with collapsible design
 
 ## Environment Variables
-Set via Amplify build or `.env.local`:
+
+Create `frontend/.env.local` for local development:
+
 ```
-NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.<region>.amazonaws.com/prod
-NEXT_PUBLIC_WS_URL=wss://<ws-api-id>.execute-api.<region>.amazonaws.com/prod
-NEXT_PUBLIC_USER_POOL_ID=<cognito-pool-id>
-NEXT_PUBLIC_USER_POOL_CLIENT_ID=<cognito-client-id>
+NEXT_PUBLIC_API_URL=https://<api-id>.execute-api.us-east-1.amazonaws.com/prod
+NEXT_PUBLIC_WS_URL=wss://<ws-id>.execute-api.us-east-1.amazonaws.com/prod
+NEXT_PUBLIC_USER_POOL_ID=us-east-1_xxxxxxxxx
+NEXT_PUBLIC_USER_POOL_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 NEXT_PUBLIC_REGION=us-east-1
 ```
 
-## Deployment
-Amplify auto-deploys on push to `main`. The build spec is defined in CDK (`infrastructure/`).
+In production, these are set automatically by the CDK Amplify build spec.
 
-Manual deploy:
+## Deployment
+
+**Manual (Amplify):**
 ```bash
 npm run build
-# Upload out/ to Amplify or use deploy_amplify.sh
+# Zip from inside out/ — NOT from frontend/
+cd out && zip -r ../deploy.zip . && cd ..
+# Then upload via AWS CLI (see docs/DEPLOYMENT.md or deploy_amplify.sh)
 ```
 
+**One-click:** Use the root `deploy.sh` script — see [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
+
+### ⚠️ Zip structure note
+Always zip from inside `out/` so `index.html` is at the zip root. Zipping the `out/` folder (as `zip -r deploy.zip out/`) causes Amplify 404 errors.
+
+## Key Components
+
+### ExerciseBoard (`src/student/ExerciseBoard.tsx`)
+Drag-and-drop exercise interface:
+- Left panel: activity cards (filterable by People/Task/Test)
+- Right panel: phase columns (drop targets)
+- Save Draft, Submit, Resubmit buttons
+- Error banner for API failures
+
+### Help System
+- **Tutorial Page** (`app/tutorial/page.tsx`): Role-tabbed accordion guides
+- **InfoIcon** (`src/shared/InfoIcon.tsx`): Inline tooltip. Usage:
+  ```tsx
+  import { InfoIcon } from "../src/shared/InfoIcon";
+  <InfoIcon tooltip="Text shown on hover" />
+  ```
+- **Tutorial Button**: NavBar top-right (visible when logged in)
+- **Help Link**: Bottom of both sidebars
+
 ## Notes
-- Next.js used as a client-only app (static export); server features are not used.
-- All business logic (scoring, validation, auth) lives in the Python backend.
-- Interactive elements carry stable `data-testid` attributes for automation.
-- Styling: Plain CSS (`app/globals.css`) with CSS custom properties (ASU brand colors).
+
+- Next.js is used as a **client-only** app — no SSR, no API routes
+- Static export: `output: "export"` in `next.config.js`
+- All interactive elements carry `data-testid` attributes for test automation
+- Styling: `app/globals.css` with CSS custom properties (ASU brand: maroon `#8C1D40`, gold `#FFC627`)
