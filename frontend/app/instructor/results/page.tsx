@@ -155,7 +155,6 @@ export default function ResultsPage() {
                                             <th style={styles.th}>Attempt 2</th>
                                             <th style={styles.th}>Change</th>
                                             <th style={styles.th}>Status</th>
-                                            <th style={styles.th}>Note</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -171,7 +170,6 @@ export default function ResultsPage() {
                                                     {r.change === "none" && "—"}
                                                 </td>
                                                 <td style={styles.td}><span style={getStatusStyle(r.status)}>{r.status}</span></td>
-                                                <td style={styles.td}><button style={styles.noteBtn}>Add Note</button></td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -214,5 +212,4 @@ const styles: Record<string, React.CSSProperties> = {
     statLabel: { fontSize: 12, color: "#6b7280", marginTop: 2 },
     th: { textAlign: "left" as const, padding: "12px 14px", fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase" as const, borderBottom: "1px solid #e5e7eb" },
     td: { padding: "14px", fontSize: 13, color: "#374151" },
-    noteBtn: { background: "#f3f4f6", border: "none", borderRadius: 4, padding: "4px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#374151" },
 };
