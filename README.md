@@ -3,7 +3,6 @@
 > An educational web application for ASU W.P. Carey's MRED program — instructors author real-estate development phase exercises, students complete drag-and-drop sorting with weighted scoring, per-card feedback, and a one-time correct-and-resubmit flow.
 
 **Live App:** https://main.dgai4l6tikxfm.amplifyapp.com  
-**Built by:** ASU Cloud Innovation Center
 
 ---
 
@@ -191,13 +190,11 @@ Current code: **`MRED-2026`** (set as Lambda env var `INSTRUCTOR_ACCESS_CODE`).
 
 ---
 
-## Cost Estimate
+## Credits
 
-At ASU classroom scale (~100 students, ~3 exercises/month):  
-**Approx $1–2/month** — dominated by Cognito per-MAU charge ($0.015/user).  
-Idle cost when no users are active: ~$0.12/month (storage only).
-
----
+This application was developed by :
+- <a href="https://www.linkedin.com/in/sreeram-s-5454961aa/" target="_blank">Sreeram Saravana Prasad</a>
+- <a href="https://www.linkedin.com/in/shakthiarun22/" target="_blank">Lahari Shakthi Arun</a>
 
 ## License
 
