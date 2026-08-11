@@ -94,37 +94,10 @@ export default function InstructorDashboard() {
     return `${diffDays}d ago`;
   }
 
-  // Live session modal state
-  const [showModal, setShowModal] = useState(false);
-  const [sessionExercise, setSessionExercise] = useState("");
-  const [sessionCode, setSessionCode] = useState("");
+  // UI state
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [assignExercise, setAssignExercise] = useState<ExerciseCard | null>(null);
-
-  function generateCode(): string {
-    const words = ["ALPHA", "BRAVO", "CHARLIE", "DELTA", "ECHO", "FOXTROT", "GOLF", "HOTEL"];
-    const word = words[Math.floor(Math.random() * words.length)];
-    const num = Math.floor(Math.random() * 9) + 1;
-    return `${word}-${num}`;
-  }
-
-  function openSessionModal() {
-    setSessionCode(generateCode());
-    if (exercises.length > 0) setSessionExercise(exercises[0].exerciseId);
-    setShowModal(true);
-  }
-
-  async function startSession() {
-    if (!sessionExercise) return;
-    try {
-      await authed("/sessions", "POST", { exerciseId: sessionExercise });
-      setShowModal(false);
-      window.location.href = "/instructor/session";
-    } catch (e: any) {
-      alert(e.message);
-    }
-  }
 
   async function deleteExercise(exerciseId: string) {
     setConfirmDelete(exerciseId);
@@ -147,52 +120,6 @@ export default function InstructorDashboard() {
   return (
     <div>
       <InstructorSidebar activeItem="dashboard" />
-
-      {/* Live Session Modal */}
-      {showModal && (
-        <div style={styles.overlay} onClick={() => setShowModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Start a Live Session?</h2>
-              <button style={styles.closeBtn} onClick={() => setShowModal(false)}>×</button>
-            </div>
-
-            <label style={styles.modalLabel}>Select an exercise to run live</label>
-            <select
-              value={sessionExercise}
-              onChange={(e) => setSessionExercise(e.target.value)}
-              style={styles.modalSelect}
-            >
-              {exercises.map((ex) => (
-                <option key={ex.exerciseId} value={ex.exerciseId}>{ex.title}</option>
-              ))}
-            </select>
-
-            <label style={styles.modalLabel}>Session Code</label>
-            <div style={styles.codeRow}>
-              <span style={styles.sessionCode}>{sessionCode}</span>
-              <button
-                style={styles.regenerateBtn}
-                onClick={() => setSessionCode(generateCode())}
-              >
-                ↻ Regenerate
-              </button>
-            </div>
-
-            <button style={styles.copyLinkBtn} onClick={() => {
-              navigator.clipboard.writeText(sessionCode);
-              alert("Session code copied: " + sessionCode);
-            }}>
-              📋 Copy Join Link
-            </button>
-
-            <div style={styles.modalActions}>
-              <button style={styles.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
-              <button style={styles.startBtn} onClick={startSession}>Start Session</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {confirmDelete && (
@@ -275,10 +202,6 @@ export default function InstructorDashboard() {
             <div style={styles.breadcrumb}>Instructor</div>
             <h1 style={styles.pageTitle}>Instructor Dashboard</h1>
           </div>
-          <button style={styles.liveSessionBtn} onClick={openSessionModal}>
-            Start Live Session
-          </button>
-          <InfoIcon tooltip="Start a live session to run an exercise in real-time with your class. Share the session code with students." />
         </div>
 
         {/* Stats Row */}
@@ -290,10 +213,6 @@ export default function InstructorDashboard() {
           <div style={styles.statCard}>
             <div style={styles.statValue}>{exercises.length}</div>
             <div style={styles.statLabel}>Exercises Created</div>
-          </div>
-          <div style={styles.statCard}>
-            <div style={{ ...styles.statValue, fontSize: 22 }}>—</div>
-            <div style={styles.statLabel}>Last Live Session</div>
           </div>
         </div>
 
@@ -413,12 +332,8 @@ export default function InstructorDashboard() {
 const styles: Record<string, React.CSSProperties> = {
   breadcrumb: { fontSize: 12, color: "#6b7280", marginBottom: 4 },
   pageTitle: { fontSize: 24, fontWeight: 700, color: "#111827", margin: 0 },
-  liveSessionBtn: {
-    background: "#FFC627", color: "#1a1a1a", border: "none", borderRadius: 8,
-    padding: "12px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer",
-  },
   statsRow: {
-    display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 24,
+    display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24,
   },
   statCard: {
     background: "#fff", borderRadius: 12, padding: "20px 24px",
@@ -526,19 +441,6 @@ const styles: Record<string, React.CSSProperties> = {
   },
   codeRow: {
     display: "flex", alignItems: "center", gap: 12, marginTop: 4,
-  },
-  sessionCode: {
-    fontSize: 28, fontWeight: 800, color: "#1a1a1a", letterSpacing: 2,
-    background: "#FFC627", padding: "8px 20px", borderRadius: 8,
-  },
-  regenerateBtn: {
-    background: "none", border: "none", color: "#8C1D40", fontSize: 13,
-    fontWeight: 600, cursor: "pointer",
-  },
-  copyLinkBtn: {
-    width: "100%", marginTop: 16, padding: "10px", background: "#f3f4f6",
-    border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 13, fontWeight: 500,
-    color: "#374151", cursor: "pointer", textAlign: "center" as const,
   },
   modalActions: {
     display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24,
