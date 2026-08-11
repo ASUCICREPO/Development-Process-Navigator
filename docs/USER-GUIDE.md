@@ -84,15 +84,6 @@ After publishing an exercise:
 3. Copy the Exercise ID and share it with students
 4. Enrolled students will also see it automatically in their **My Exercises** list
 
-### Running a Live Session
-
-1. Go to **Live Session** in the sidebar
-2. Select an exercise
-3. Click **Start Session** — a session code is generated
-4. Students join using the session code from their dashboard
-5. You'll see a real-time progress board showing who has placed cards and submitted
-6. Click **End Session** when done
-
 ### Viewing Results
 
 Go to **Results** in the sidebar.

@@ -12,7 +12,6 @@ app/
 │   ├── page.tsx              Dashboard (exercises, stats, assign modal)
 │   ├── exercises/            Exercise creation, weight matrix editor
 │   ├── roster/               Student roster (invite / join code)
-│   ├── session/              Live session host view
 │   └── results/              Class results, score trends, CSV export
 └── student/
     ├── page.tsx              Student dashboard

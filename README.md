@@ -20,8 +20,8 @@
 
 | Role | Capabilities |
 |---|---|
-| **Instructor** | Create exercises (drag activities into phase mappings with weights), manage student roster via email invite or join code, run live classroom sessions, view class results and history |
-| **Student** | Complete drag-and-drop activity sorting exercises, receive per-card scored feedback, view attempt history and scores, join live sessions |
+| **Instructor** | Create exercises (drag activities into phase mappings with weights), manage student roster via email invite or join code, view class results and history |
+| **Student** | Complete drag-and-drop activity sorting exercises, receive per-card scored feedback, view attempt history and scores |
 
 ---
 
@@ -34,30 +34,26 @@
 │    (Instructor UI + Student UI + Tutorial)   │
 └────────────────────┬────────────────────────┘
                      │ HTTPS
-          ┌──────────┴──────────┐
-          │                     │
-   ┌──────▼──────┐    ┌────────▼────────┐
-   │  REST API   │    │  WebSocket API  │
-   │  Gateway    │    │    Gateway      │
-   │  (Cognito   │    │  (live session) │
-   │  Authorizer)│    └────────┬────────┘
-   └──────┬──────┘             │
-          │                    │
-   ┌──────▼──────┐    ┌────────▼────────┐
-   │   Lambda    │    │    Lambda       │
-   │  (REST API) │    │  (WebSocket)    │
-   │ Python 3.12 │    │  Python 3.12    │
-   └──────┬──────┘    └────────┬────────┘
-          │                    │
-   ┌──────▼────────────────────▼──────┐
-   │         DynamoDB (12 tables)     │
-   │         on-demand billing        │
-   └──────────────────────────────────┘
-          │
-   ┌──────▼──────┐    ┌─────────────┐
-   │   Cognito   │    │     S3      │
-   │  User Pool  │    │   Assets    │
-   └─────────────┘    └─────────────┘
+                     │
+          ┌──────────▼──────────┐
+          │    REST API         │
+          │    Gateway          │
+          │   (Cognito          │
+          │   Authorizer)       │
+          └──────────┬──────────┘
+                     │
+          ┌──────────▼──────────┐
+          │      Lambda         │
+          │   (REST API)        │
+          │   Python 3.12       │
+          └──────────┬──────────┘
+                     │
+   ┌─────────────────┼──────────────────┐
+   │                 │                  │
+┌──▼───────┐  ┌──────▼──────┐  ┌───────▼───┐
+│ DynamoDB │  │   Cognito   │  │    S3     │
+│(12 tables)│  │  User Pool  │  │  Assets   │
+└──────────┘  └─────────────┘  └───────────┘
 ```
 
 | Layer | Technology |
@@ -65,7 +61,6 @@
 | Frontend | Next.js 14 (React/TypeScript), AWS Amplify Hosting |
 | Backend | Python 3.12 Lambda, modular monolith |
 | REST API | Amazon API Gateway (REST) + Cognito authorizer |
-| Real-time | Amazon API Gateway (WebSocket) |
 | Data | Amazon DynamoDB — 12 tables, on-demand |
 | Auth | Amazon Cognito User Pool (Instructor / Student groups) |
 | Storage | Amazon S3 (asset uploads) |
@@ -80,7 +75,7 @@
 │   ├── app/
 │   │   ├── page.tsx            Login / Register
 │   │   ├── layout.tsx          Root layout (NavBar + footer)
-│   │   ├── instructor/         Dashboard, Exercises, Roster, Session, Results
+│   │   ├── instructor/         Dashboard, Exercises, Roster, Results
 │   │   ├── student/            Dashboard, Exercise board, History, Scores
 │   │   └── tutorial/           Help Center (role-tabbed guides)
 │   ├── src/shared/             NavBar, Sidebars, InfoIcon, apiClient, session

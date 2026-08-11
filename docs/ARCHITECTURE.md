@@ -22,21 +22,21 @@ The Development Process Navigator is a fully serverless application on AWS. Ther
                     ┌─────────────▼────────────────┐
                     │        User Browser           │
                     │   (localStorage token/role)   │
-                    └────────┬─────────────┬────────┘
-                             │ REST/HTTPS  │ WSS
-                   ┌─────────▼──────┐  ┌──▼────────────────┐
-                   │  API Gateway   │  │   API Gateway      │
-                   │  REST API      │  │   WebSocket API    │
-                   │  + Cognito     │  │   (live sessions)  │
-                   │  Authorizer    │  └──────────┬─────────┘
-                   └────────┬───────┘             │
-                            │                     │
-                   ┌────────▼───────┐  ┌──────────▼─────────┐
-                   │ Lambda         │  │ Lambda              │
-                   │ REST Handler   │  │ WebSocket Handler   │
-                   │ (Python 3.12)  │  │ (Python 3.12)       │
-                   │ 29s timeout    │  │ 29s timeout         │
-                   └────────┬───────┘  └──────────┬─────────┘
+                    └────────┬─────────────────────────────────────┘
+                             │ REST/HTTPS
+                   ┌─────────▼──────┐
+                   │  API Gateway   │
+                   │  REST API      │
+                   │  + Cognito     │
+                   │  Authorizer    │
+                   └────────┬───────┘
+                            │
+                   ┌────────▼───────┐
+                   │ Lambda         │
+                   │ REST Handler   │
+                   │ (Python 3.12)  │
+                   │ 29s timeout    │
+                   └────────┬───────┘
                             │                     │
                    ┌────────▼─────────────────────▼──────────┐
                    │           DynamoDB (12 Tables)           │
@@ -60,9 +60,7 @@ The Development Process Navigator is a fully serverless application on AWS. Ther
 |---|---|---|
 | **AWS Amplify Hosting** | Static hosting, auto-deploy on push to `main` | Serves Next.js static export via CloudFront CDN |
 | **Amazon API Gateway (REST)** | Cognito authorizer, CORS enabled, `prod` stage | All REST endpoints — auth, exercise, scoring, results |
-| **Amazon API Gateway (WebSocket)** | `prod` stage, auto-deploy | Live session real-time messaging |
 | **AWS Lambda — REST** | Python 3.12, 128 MB, 29s timeout | API dispatcher for all REST routes |
-| **AWS Lambda — WebSocket** | Python 3.12, 128 MB, 29s timeout | WebSocket connect/disconnect/message handler |
 | **Amazon Cognito User Pool** | Self-signup, email login, custom `role` attribute | Authentication + RBAC (Instructor / Student) |
 | **Amazon DynamoDB** | 12 tables, PAY_PER_REQUEST billing | All application data |
 | **Amazon S3** | Private bucket, S3-managed encryption, CORS | Asset/upload storage |
@@ -89,7 +87,6 @@ backend/src/
 │   └── scoring/
 │       └── scoring.py        # Pure scoring engine (no I/O — fully unit tested)
 ├── results/                  # U4: History, attempt detail, class results
-├── live_session/             # U5: Live session REST + WebSocket handler
 └── shared/
     ├── types.py              # Phase enum, Role, Principal
     ├── errors.py             # AppError, ValidationError, NotFoundError, etc.
@@ -138,7 +135,6 @@ frontend/app/
 │   ├── page.tsx              Instructor dashboard (exercises, stats)
 │   ├── exercises/            Exercise creation + management
 │   ├── roster/               Student roster (invite / join code)
-│   ├── session/              Live session host view
 │   └── results/              Class results + score trends
 └── student/
     ├── page.tsx              Student dashboard
@@ -194,9 +190,6 @@ Cognito User (userId)
 | Exercises | exerciseId | — | — | Published exercises |
 | StudentExerciseState | exerciseId | studentId | — | Draft placements |
 | Attempts | studentId | attemptId | byExercise (exerciseId) | Submissions |
-| Sessions | sessionId | — | — | Live sessions |
-| SessionParticipants | sessionId | studentId | — | Session roster |
-| WsConnections | sessionId | connectionId | byConnection (connectionId) | Active WS connections |
 
 ---
 
@@ -217,8 +210,6 @@ POST /configurations/{id}/apply              Publish → exerciseId
 GET  /exercises/{id}/detailed-results        Class results
 POST /roster                                 Invite student by email
 POST /join-codes                             Generate class join code
-POST /sessions                               Start live session
-POST /sessions/{id}/end
 ```
 
 ### Protected — Student
@@ -231,13 +222,6 @@ POST /exercises/{id}/resubmit               Final submission → locks exercise
 GET  /students/{id}/history                  Attempt history
 GET  /attempts/{id}                          Attempt detail + card feedback
 POST /attempts/{id}/reflection               Submit reflection response
-POST /sessions/{id}/join                     Join live session
-```
-
-### WebSocket (live session)
-```
-WSS connect   → subscribe to session
-Server push   → ProgressEvent { type, submittedCount, totalParticipants, scoreDistribution }
 ```
 
 ---
@@ -263,13 +247,13 @@ All resources are defined in a single CDK stack (`ProcessCanvasStack`):
 infrastructure/
 ├── bin/processcanvas.ts       CDK app entry point (us-east-1 default)
 ├── lib/processcanvas-stack.ts All resources: Cognito, DynamoDB, Lambda,
-│                              API GW REST, API GW WebSocket, S3, Amplify, IAM, CloudWatch
+│                              API GW REST, S3, Amplify, IAM, CloudWatch
 └── cdk.json                   CDK config
 ```
 
 Stack outputs:
 - `UserPoolId`, `UserPoolClientId`
-- `RestApiUrl`, `WsApiUrl`
+- `RestApiUrl`
 - `AssetBucketName`
 - `AmplifyAppId`, `AmplifyDefaultDomain`, `AmplifyBranchUrl`
 
