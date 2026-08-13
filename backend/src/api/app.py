@@ -29,7 +29,7 @@ _ses = boto3.client("ses")
 USER_POOL_ID = os.environ.get("USER_POOL_ID", "")
 USER_POOL_CLIENT_ID = os.environ.get("USER_POOL_CLIENT_ID", "")
 APP_URL = os.environ.get("APP_URL", "https://main.dgai4l6tikxfm.amplifyapp.com")
-SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL", "no-reply@asucic.com")
+SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL", "no-reply@asu.edu")
 
 
 def _t(name: str):
@@ -757,7 +757,8 @@ def add_student_to_roster(principal: Principal, body: dict) -> dict:
         })
 
         # Send invite email via SES
-        _send_invite_email(email, instructor_name)
+        instructor_email = instructor.get("email", "") if instructor else ""
+        _send_invite_email(to_email=email, instructor_name=instructor_name, instructor_email=instructor_email)
 
         return {"ok": True, "invited": True, "email": email,
                 "message": f"Invite sent to {email}. They'll be enrolled automatically when they register."}
@@ -771,9 +772,12 @@ def add_student_to_roster(principal: Principal, body: dict) -> dict:
     return {"ok": True, "studentId": student["userId"], "name": student.get("displayName", "")}
 
 
-def _send_invite_email(to_email: str, instructor_name: str) -> None:
-    """Send a registration invite email via Amazon SES."""
-    subject = "You're invited to the Development Process Navigator"
+def _send_invite_email(to_email: str, instructor_name: str, instructor_email: str = "") -> None:
+    """Send a registration invite email via Amazon SES from the instructor's email."""
+    # Send directly from the instructor's email address
+    sender = f'"{instructor_name}" <{instructor_email}>' if instructor_email else SES_SENDER_EMAIL
+
+    subject = f"{instructor_name} invited you to the Development Process Navigator"
     body_html = f"""
     <html>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -797,8 +801,11 @@ def _send_invite_email(to_email: str, instructor_name: str) -> None:
             </div>
             <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
                 Click the button above to create your student account. Once registered,
-                you'll automatically be enrolled in your instructor's class and can access
+                you'll automatically be enrolled in {instructor_name}'s class and can access
                 assigned exercises.
+            </p>
+            <p style="font-size: 13px; color: #6b7280;">
+                If you have questions, reply to this email to reach your instructor directly.
             </p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
             <p style="font-size: 12px; color: #9ca3af; text-align: center;">
@@ -811,12 +818,13 @@ def _send_invite_email(to_email: str, instructor_name: str) -> None:
     body_text = (
         f"{instructor_name} has invited you to join the Development Process Navigator.\n\n"
         f"Register at: {APP_URL}\n\n"
-        "Once registered, you'll be automatically enrolled in your instructor's class."
+        "Once registered, you'll be automatically enrolled in your instructor's class.\n\n"
+        f"Questions? Reply to this email to reach {instructor_name}."
     )
 
     try:
         _ses.send_email(
-            Source=SES_SENDER_EMAIL,
+            Source=sender,
             Destination={"ToAddresses": [to_email]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
