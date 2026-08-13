@@ -220,6 +220,9 @@ def register(body: dict) -> dict:
         _associate_join_code(sub, join_code)
     if role == "STUDENT":
         _fulfill_pending_invites(sub, email)
+    if role == "INSTRUCTOR":
+        # Trigger SES email verification so instructor can send invite emails
+        _verify_instructor_email(email)
     return {"userId": sub, "role": role}
 
 
@@ -267,6 +270,22 @@ def _fulfill_pending_invites(student_id: str, email: str) -> None:
             })
     except Exception as e:
         print(f"Error fulfilling pending invites for {email}: {e}")
+
+
+def _verify_instructor_email(email: str) -> None:
+    """Request SES email verification for an instructor.
+    
+    AWS sends a verification email to the instructor's address.
+    Once they click the link, their email becomes a verified sender in SES,
+    allowing them to send student invite emails from their own address.
+    
+    This is idempotent — calling it for an already-verified email does nothing harmful.
+    """
+    try:
+        _ses.verify_email_identity(EmailAddress=email)
+        print(f"SES verification requested for instructor: {email}")
+    except Exception as e:
+        print(f"SES verify_email_identity failed for {email}: {e}")
 
 
 # ---- Templates & Authoring -------------------------------------------------

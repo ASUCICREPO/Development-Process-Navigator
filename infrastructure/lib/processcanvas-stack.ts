@@ -168,7 +168,7 @@ export class ProcessCanvasStack extends Stack {
     }));
 
     apiFn.addToRolePolicy(new iam.PolicyStatement({
-      actions: ["ses:SendEmail", "ses:SendRawEmail"],
+      actions: ["ses:SendEmail", "ses:SendRawEmail", "ses:VerifyEmailIdentity"],
       resources: ["*"],
     }));
 
