@@ -65,7 +65,19 @@ The script will:
 
 **Total time: ~8–12 minutes**
 
-### Step 3 — Done
+### Step 3 — Verify Email Domain (for invite emails)
+
+After deployment, instructors can send invite emails to students. For this to work, the instructor's email domain must be verified in SES:
+
+1. Go to [SES Console → Verified Identities](https://console.aws.amazon.com/ses/home#/verified-identities)
+2. Find the domain created by CDK (e.g. `asu.edu`)
+3. Click on it → go to **Authentication** tab
+4. Add the 3 DKIM CNAME records to your DNS (requires DNS admin access)
+5. Wait for status to change to **Verified** (~5–10 minutes)
+
+> If you don't have DNS access, you can alternatively verify individual instructor emails: SES Console → Create Identity → Email address → enter the instructor's email → they click the verification link in their inbox.
+
+### Step 4 — Done
 
 At the end of the script you will see:
 

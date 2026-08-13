@@ -773,9 +773,13 @@ def add_student_to_roster(principal: Principal, body: dict) -> dict:
 
 
 def _send_invite_email(to_email: str, instructor_name: str, instructor_email: str = "") -> None:
-    """Send a registration invite email via Amazon SES from the instructor's email."""
-    # Send directly from the instructor's email address
+    """Send a registration invite email via Amazon SES from the instructor's email.
+    
+    Requires the instructor's email domain (e.g. asu.edu) to be verified in SES,
+    or SES to be in production mode. This is handled during deployment setup.
+    """
     sender = f'"{instructor_name}" <{instructor_email}>' if instructor_email else SES_SENDER_EMAIL
+    reply_to = [instructor_email] if instructor_email else []
 
     subject = f"{instructor_name} invited you to the Development Process Navigator"
     body_html = f"""
@@ -825,6 +829,7 @@ def _send_invite_email(to_email: str, instructor_name: str, instructor_email: st
     try:
         _ses.send_email(
             Source=sender,
+            ReplyToAddresses=reply_to,
             Destination={"ToAddresses": [to_email]},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},

@@ -11,6 +11,7 @@ import * as amplify from "@aws-cdk/aws-amplify-alpha";
 import * as codebuild from "aws-cdk-lib/aws-codebuild";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as ses from "aws-cdk-lib/aws-ses";
 
 /**
  * Single-stack serverless infrastructure for ProcessCanvas.
@@ -56,6 +57,16 @@ export class ProcessCanvasStack extends Stack {
           maxAge: 3000,
         },
       ],
+    });
+
+    // -------------------------------------------------------------------------
+    // SES — Email identity for instructor invites
+    // The email domain (e.g. asu.edu) must be verified in SES.
+    // After deployment, add the DKIM DNS records shown in the SES console.
+    // -------------------------------------------------------------------------
+    const sesEmailDomain = this.node.tryGetContext("sesEmailDomain") || "asu.edu";
+    new ses.EmailIdentity(this, "InstructorEmailDomain", {
+      identity: ses.Identity.domain(sesEmailDomain),
     });
 
     // -------------------------------------------------------------------------
@@ -320,6 +331,10 @@ export class ProcessCanvasStack extends Stack {
     new CfnOutput(this, "AmplifyDefaultDomain", { value: amplifyApp.defaultDomain });
     new CfnOutput(this, "AmplifyBranchUrl", {
       value: `https://${mainBranch.branchName}.${amplifyApp.defaultDomain}`,
+    });
+    new CfnOutput(this, "SesEmailDomain", {
+      value: sesEmailDomain,
+      description: "Verify this domain in SES (add DKIM DNS records) to enable invite emails",
     });
   }
 }

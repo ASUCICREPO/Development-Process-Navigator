@@ -19,6 +19,7 @@ set -euo pipefail
 PROFILE="${AWS_PROFILE:-default}"
 REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="ProcessCanvasStack"
+SES_EMAIL_DOMAIN="${SES_EMAIL_DOMAIN:-asu.edu}"
 
 # Colours
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -63,6 +64,7 @@ log "Deploying CDK stack: $STACK_NAME..."
 cdk deploy "$STACK_NAME" \
   --profile "$PROFILE" \
   --require-approval never \
+  --context sesEmailDomain="$SES_EMAIL_DOMAIN" \
   --outputs-file /tmp/cdk-outputs.json
 
 ok "CDK stack deployed."
@@ -198,4 +200,11 @@ echo "  Instructor Access Code: MRED-2026"
 echo "  (Change in infrastructure/lib/processcanvas-stack.ts → INSTRUCTOR_ACCESS_CODE)"
 echo ""
 echo -e "${GREEN}Open the app:${NC} $FRONTEND_URL"
+echo ""
+echo -e "${YELLOW}IMPORTANT — Email Setup:${NC}"
+echo "  To enable instructor invite emails, verify the email domain in SES:"
+echo "  1. Go to SES Console → Verified Identities"
+echo "  2. Find 'asu.edu' (or your domain) → Authentication tab"
+echo "  3. Add the 3 DKIM CNAME records to your DNS"
+echo "  4. Once verified, instructors can send invites from their @asu.edu email"
 echo ""
