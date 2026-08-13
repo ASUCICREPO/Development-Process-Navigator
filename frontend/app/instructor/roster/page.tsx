@@ -178,10 +178,14 @@ export default function RosterPage() {
                                 <button style={styles.sendInviteBtn} onClick={async () => {
                                     if (!inviteEmail) return;
                                     try {
-                                        await authed("/roster/add", "POST", { email: inviteEmail });
+                                        const res = await authed("/roster/add", "POST", { email: inviteEmail });
                                         setInviteEmail("");
                                         loadRoster();
-                                        alert("Student added!");
+                                        if (res.invited) {
+                                            alert(`Invite email sent to ${res.email}! They'll be auto-enrolled when they register.`);
+                                        } else {
+                                            alert(`${res.name || "Student"} added to your roster!`);
+                                        }
                                     } catch (e: any) { alert(e.message); }
                                 }}>Send Invite</button>
                             </>
@@ -271,7 +275,7 @@ export default function RosterPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
                     <div>
                         <div style={styles.breadcrumb}>Instructor &gt; Roster</div>
-                        <h1 style={styles.pageTitle}>Student Roster <InfoIcon tooltip="Manage your class roster. Add students via email invite (they must register first) or share a Join Code for self-enrollment." /></h1>
+                        <h1 style={styles.pageTitle}>Student Roster <InfoIcon tooltip="Manage your class roster. Add students via email — if they haven't registered yet, they'll receive an invite email and be auto-enrolled when they sign up. You can also share a Join Code for self-enrollment." /></h1>
                     </div>
                     <button style={styles.addStudentBtn} onClick={() => setShowAddModal(true)}>+ Add Student</button>
                 </div>

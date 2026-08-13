@@ -24,9 +24,12 @@ from ..shared.types import Phase, Principal, Role
 
 _ddb = boto3.resource("dynamodb")
 _cognito = boto3.client("cognito-idp")
+_ses = boto3.client("ses")
 
 USER_POOL_ID = os.environ.get("USER_POOL_ID", "")
 USER_POOL_CLIENT_ID = os.environ.get("USER_POOL_CLIENT_ID", "")
+APP_URL = os.environ.get("APP_URL", "https://main.dgai4l6tikxfm.amplifyapp.com")
+SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL", "no-reply@asucic.com")
 
 
 def _t(name: str):
@@ -215,6 +218,8 @@ def register(body: dict) -> dict:
     })
     if role == "STUDENT" and join_code:
         _associate_join_code(sub, join_code)
+    if role == "STUDENT":
+        _fulfill_pending_invites(sub, email)
     return {"userId": sub, "role": role}
 
 
@@ -240,6 +245,28 @@ def _associate_join_code(student_id: str, code: str) -> None:
         raise ValidationError("Invalid or expired join code.")
     _t("Enrollments").put_item(Item={
         "instructorId": jc["instructorId"], "studentId": student_id, "source": "JOIN_CODE"})
+
+
+def _fulfill_pending_invites(student_id: str, email: str) -> None:
+    """Convert any pending invite enrollments for this email into real enrollments."""
+    try:
+        resp = _t("Enrollments").scan()
+        pending = [e for e in resp.get("Items", [])
+                   if e.get("studentId", "").startswith("pending:") and e.get("pendingEmail") == email]
+        for invite in pending:
+            # Delete the pending placeholder
+            _t("Enrollments").delete_item(Key={
+                "instructorId": invite["instructorId"],
+                "studentId": invite["studentId"],
+            })
+            # Create real enrollment
+            _t("Enrollments").put_item(Item={
+                "instructorId": invite["instructorId"],
+                "studentId": student_id,
+                "source": "INVITE",
+            })
+    except Exception as e:
+        print(f"Error fulfilling pending invites for {email}: {e}")
 
 
 # ---- Templates & Authoring -------------------------------------------------
@@ -703,7 +730,7 @@ def get_instructor_stats(principal: Principal) -> dict:
 
 
 def add_student_to_roster(principal: Principal, body: dict) -> dict:
-    """Add a student to instructor's roster by email."""
+    """Add a student to instructor's roster by email. If not registered, send invite email."""
     _require_role(principal, Role.INSTRUCTOR)
     email = body.get("email", "").strip()
     if not email or "@" not in email:
@@ -713,16 +740,95 @@ def add_student_to_roster(principal: Principal, body: dict) -> dict:
     users_resp = _t("Users").scan()
     student = next((u for u in users_resp.get("Items", [])
                     if u.get("email") == email and u.get("role") == "STUDENT"), None)
-    if not student:
-        raise NotFoundError("No student account found with that email.")
 
-    # Create enrollment
+    if not student:
+        # Student not registered yet — send invite email
+        # Get instructor name for the email
+        instructor = next((u for u in users_resp.get("Items", [])
+                           if u.get("userId") == principal.user_id), None)
+        instructor_name = instructor.get("displayName", "Your instructor") if instructor else "Your instructor"
+
+        # Store a pending enrollment so when the student registers, they auto-enroll
+        _t("Enrollments").put_item(Item={
+            "instructorId": principal.user_id,
+            "studentId": f"pending:{email}",
+            "pendingEmail": email,
+            "source": "INVITE",
+        })
+
+        # Send invite email via SES
+        _send_invite_email(email, instructor_name)
+
+        return {"ok": True, "invited": True, "email": email,
+                "message": f"Invite sent to {email}. They'll be enrolled automatically when they register."}
+
+    # Student exists — create enrollment
     _t("Enrollments").put_item(Item={
         "instructorId": principal.user_id,
         "studentId": student["userId"],
         "source": "ROSTER",
     })
     return {"ok": True, "studentId": student["userId"], "name": student.get("displayName", "")}
+
+
+def _send_invite_email(to_email: str, instructor_name: str) -> None:
+    """Send a registration invite email via Amazon SES."""
+    subject = "You're invited to the Development Process Navigator"
+    body_html = f"""
+    <html>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #8C1D40; margin: 0;">Development Process Navigator</h2>
+            <p style="color: #6b7280; font-size: 14px;">ASU W.P. Carey School of Business</p>
+        </div>
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 32px;">
+            <p style="font-size: 15px; color: #111827;">Hi there,</p>
+            <p style="font-size: 15px; color: #374151; line-height: 1.6;">
+                <strong>{instructor_name}</strong> has invited you to join their class on the
+                Development Process Navigator — an interactive exercise where you'll sequence
+                real estate development activities into the correct process phases.
+            </p>
+            <div style="text-align: center; margin: 24px 0;">
+                <a href="{APP_URL}" style="
+                    display: inline-block; background: #8C1D40; color: #fff;
+                    text-decoration: none; padding: 14px 32px; border-radius: 8px;
+                    font-size: 15px; font-weight: 700;
+                ">Register & Get Started</a>
+            </div>
+            <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
+                Click the button above to create your student account. Once registered,
+                you'll automatically be enrolled in your instructor's class and can access
+                assigned exercises.
+            </p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
+            <p style="font-size: 12px; color: #9ca3af; text-align: center;">
+                Arizona State University · W.P. Carey School of Business · ASU Cloud Innovation Center
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    body_text = (
+        f"{instructor_name} has invited you to join the Development Process Navigator.\n\n"
+        f"Register at: {APP_URL}\n\n"
+        "Once registered, you'll be automatically enrolled in your instructor's class."
+    )
+
+    try:
+        _ses.send_email(
+            Source=SES_SENDER_EMAIL,
+            Destination={"ToAddresses": [to_email]},
+            Message={
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body": {
+                    "Html": {"Data": body_html, "Charset": "UTF-8"},
+                    "Text": {"Data": body_text, "Charset": "UTF-8"},
+                },
+            },
+        )
+    except Exception as e:
+        # Log the error but don't fail — the pending enrollment is still created
+        print(f"SES send_email failed for {to_email}: {e}")
 
 
 def delete_exercise(principal: Principal, exercise_id: str) -> dict:

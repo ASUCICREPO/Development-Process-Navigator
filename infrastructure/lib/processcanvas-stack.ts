@@ -137,6 +137,7 @@ export class ProcessCanvasStack extends Stack {
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         ASSET_BUCKET: assetBucket.bucketName,
         INSTRUCTOR_ACCESS_CODE: "MRED-2026",
+        SES_SENDER_EMAIL: "no-reply@asucic.com",
         ...Object.fromEntries(allTables.map((t) => [`TABLE_${t.node.id.toUpperCase()}`, t.tableName])),
       },
     });
@@ -153,6 +154,11 @@ export class ProcessCanvasStack extends Stack {
         "cognito-idp:InitiateAuth",
       ],
       resources: [userPool.userPoolArn],
+    }));
+
+    apiFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["ses:SendEmail", "ses:SendRawEmail"],
+      resources: ["*"],
     }));
 
     // -------------------------------------------------------------------------
