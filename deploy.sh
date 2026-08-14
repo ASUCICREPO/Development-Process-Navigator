@@ -19,7 +19,7 @@ set -euo pipefail
 PROFILE="${AWS_PROFILE:-}"
 REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="ProcessCanvasStack"
-SES_EMAIL_DOMAIN="${SES_EMAIL_DOMAIN:-asu.edu}"
+SES_EMAIL_DOMAIN="${SES_EMAIL_DOMAIN:-wpcarey.asu.edu}"
 
 # Build profile flag (empty if no profile set — works for CloudShell)
 PROFILE_FLAG=""

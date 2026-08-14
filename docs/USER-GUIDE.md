@@ -1,6 +1,6 @@
 # User Guide — Development Process Navigator
 
-**Live App:** https://main.dgai4l6tikxfm.amplifyapp.com
+**Live App:** <YOUR_AMPLIFY_URL>
 
 This guide covers both roles. Jump to your section:
 
@@ -115,7 +115,7 @@ After logging in you'll see your **Student Dashboard** with:
 3. Click **Go**
 
 **Option C — Direct link:**
-Your instructor may share a direct link: `https://main.dgai4l6tikxfm.amplifyapp.com/student/exercise?id=<exercise-id>`
+Your instructor may share a direct link: `<YOUR_AMPLIFY_URL>/student/exercise?id=<exercise-id>`
 
 ### Playing the Exercise
 

@@ -64,7 +64,7 @@ export class ProcessCanvasStack extends Stack {
     // The email domain (e.g. asu.edu) must be verified in SES.
     // After deployment, add the DKIM DNS records shown in the SES console.
     // -------------------------------------------------------------------------
-    const sesEmailDomain = this.node.tryGetContext("sesEmailDomain") || "asu.edu";
+    const sesEmailDomain = this.node.tryGetContext("sesEmailDomain") || "wpcarey.asu.edu";
     new ses.EmailIdentity(this, "InstructorEmailDomain", {
       identity: ses.Identity.domain(sesEmailDomain),
     });
@@ -148,7 +148,7 @@ export class ProcessCanvasStack extends Stack {
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         ASSET_BUCKET: assetBucket.bucketName,
         INSTRUCTOR_ACCESS_CODE: "MRED-2026",
-        SES_SENDER_EMAIL: "no-reply@asu.edu",
+        SES_SENDER_EMAIL: "no-reply@wpcarey.asu.edu",
         ...Object.fromEntries(allTables.map((t) => [`TABLE_${t.node.id.toUpperCase()}`, t.tableName])),
       },
     });
@@ -318,6 +318,9 @@ export class ProcessCanvasStack extends Stack {
       autoBuild: true,  // deploy on every push to main
       stage: "PRODUCTION",
     });
+
+    // Set APP_URL on the Lambda now that we know the Amplify domain
+    apiFn.addEnvironment("APP_URL", `https://${mainBranch.branchName}.${amplifyApp.defaultDomain}`);
 
     // -------------------------------------------------------------------------
     // Outputs

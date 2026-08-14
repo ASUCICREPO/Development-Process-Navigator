@@ -2,8 +2,7 @@
 import { ApiClient } from "./apiClient";
 
 export const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://51419m3ko9.execute-api.us-east-1.amazonaws.com/prod"
+  process.env.NEXT_PUBLIC_API_URL || ""
 ).replace(/\/$/, "");
 
 const TOKEN_KEY = "pc_idToken";

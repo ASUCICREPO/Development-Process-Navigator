@@ -28,8 +28,8 @@ _ses = boto3.client("ses")
 
 USER_POOL_ID = os.environ.get("USER_POOL_ID", "")
 USER_POOL_CLIENT_ID = os.environ.get("USER_POOL_CLIENT_ID", "")
-APP_URL = os.environ.get("APP_URL", "https://main.dgai4l6tikxfm.amplifyapp.com")
-SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL", "no-reply@asu.edu")
+APP_URL = os.environ.get("APP_URL", "")
+SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL", "no-reply@wpcarey.asu.edu")
 
 
 def _t(name: str):

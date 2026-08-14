@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export AWS_DEFAULT_REGION=us-east-1
-export AWS_PROFILE=sandbox2025
-APP_ID="dgai4l6tikxfm"
+export AWS_PROFILE="${AWS_PROFILE:-default}"
+APP_ID="${APP_ID:-<YOUR_AMPLIFY_APP_ID>}"
 BRANCH="main"
 ZIP="$(pwd)/deploy.zip"
 

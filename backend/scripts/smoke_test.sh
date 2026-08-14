@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # End-to-end smoke test against the deployed ProcessCanvas API.
 set -euo pipefail
-API="https://51419m3ko9.execute-api.us-east-1.amazonaws.com/prod"
+API="${API_URL:-$(aws cloudformation describe-stacks --stack-name ProcessCanvasStack --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text 2>/dev/null)}"
+if [ -z "$API" ]; then echo "Set API_URL or deploy the stack first"; exit 1; fi
 TS=$(date +%s)
 INSTR="instructor_${TS}@example.com"
 STUD="student_${TS}@example.com"

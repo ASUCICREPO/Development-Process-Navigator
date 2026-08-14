@@ -177,7 +177,7 @@ cd frontend
 npm run build                    # Rebuild static export
 
 # Deploy to Amplify (replace APP_ID and PROFILE)
-APP_ID=dgai4l6tikxfm
+APP_ID=<YOUR_AMPLIFY_APP_ID>
 AWS_PROFILE=sandbox2025
 
 cd out && zip -r ../deploy.zip . && cd ..
@@ -240,7 +240,7 @@ aws lambda update-function-code \
 
 ### Health check — API Gateway
 ```bash
-API=https://51419m3ko9.execute-api.us-east-1.amazonaws.com/prod
+API=<YOUR_REST_API_URL>
 curl -s -o /dev/null -w "%{http_code}" "$API/exercises"
 # Expected: 401 (Unauthorized — means API is up, auth is working)
 ```

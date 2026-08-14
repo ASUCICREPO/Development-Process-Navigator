@@ -2,7 +2,7 @@
 
 > An educational web application for ASU W.P. Carey's MRED program — instructors author real-estate development phase exercises, students complete drag-and-drop sorting with weighted scoring, per-card feedback, and a one-time correct-and-resubmit flow.
 
-**Live App:** https://main.dgai4l6tikxfm.amplifyapp.com  
+**Live App:** <YOUR_AMPLIFY_URL>  
 
 ---
 

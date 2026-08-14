@@ -20,3 +20,5 @@ cdk.out/
 
 # Kiro workspace config
 .kiro/
+*.zip
+frontend/out/

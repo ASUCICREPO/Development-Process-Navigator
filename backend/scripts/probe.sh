@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
-API="https://51419m3ko9.execute-api.us-east-1.amazonaws.com/prod"
+API="${API_URL:-$(aws cloudformation describe-stacks --stack-name ProcessCanvasStack --query 'Stacks[0].Outputs[?OutputKey==`RestApiUrl`].OutputValue' --output text 2>/dev/null)}"
+if [ -z "$API" ]; then echo "Set API_URL or deploy the stack first"; exit 1; fi
 TS=$(date +%s)
 I="i_${TS}@example.com"; S="s_${TS}@example.com"; PW="Passw0rd123"
 hdr_json='Content-Type: application/json'
