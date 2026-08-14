@@ -56,19 +56,20 @@ ok "AWS account: $AWS_ACCOUNT | region: $REGION | profile: ${PROFILE:-default}"
 
 # ---- Install CDK CLI ---------------------------------------------------------
 log "Installing/updating AWS CDK CLI..."
-npm install -g aws-cdk@latest --quiet
-ok "CDK version: $(cdk --version)"
+# Install locally to avoid permission issues in CloudShell
+npx --yes aws-cdk@latest --version >/dev/null 2>&1
+ok "CDK available via npx"
 
 # ---- Bootstrap CDK (idempotent) ----------------------------------------------
 log "Bootstrapping CDK in $AWS_ACCOUNT/$REGION (safe to re-run)..."
 cd "$(dirname "$0")/infrastructure"
 npm install --quiet
-cdk bootstrap "aws://$AWS_ACCOUNT/$REGION" $PROFILE_FLAG --quiet || \
+npx aws-cdk@latest bootstrap "aws://$AWS_ACCOUNT/$REGION" $PROFILE_FLAG --quiet || \
   warn "Bootstrap returned non-zero (may already be bootstrapped — continuing)"
 
 # ---- Deploy CDK stack --------------------------------------------------------
 log "Deploying CDK stack: $STACK_NAME..."
-cdk deploy "$STACK_NAME" \
+npx aws-cdk@latest deploy "$STACK_NAME" \
   $PROFILE_FLAG \
   --require-approval never \
   --context sesEmailDomain="$SES_EMAIL_DOMAIN" \
