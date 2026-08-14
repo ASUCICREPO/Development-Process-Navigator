@@ -121,6 +121,10 @@ ok "Amplify App  : $AMPLIFY_APP_ID"
 # ---- Build frontend ----------------------------------------------------------
 log "Building Next.js frontend..."
 cd ../frontend
+
+# Free up disk space (CDK node_modules no longer needed after deploy)
+rm -rf ../infrastructure/node_modules
+
 npm install --quiet
 
 # Write env vars for the static build
