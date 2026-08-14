@@ -52,16 +52,6 @@ const instructorGuides: GuideItem[] = [
         ],
     },
     {
-        title: "Running a Live Session",
-        description: "Facilitate real-time collaborative exercises in class.",
-        steps: [
-            "From the Dashboard, click \"Start Live Session\".",
-            "Select which exercise to run and share the session code with students.",
-            "Students join using the code — you can monitor their progress in real time.",
-            "Use the live view to discuss results and facilitate group learning.",
-        ],
-    },
-    {
         title: "Viewing Results & History",
         description: "Track student performance and submission history.",
         steps: [
@@ -112,16 +102,6 @@ const studentGuides: GuideItem[] = [
             "See all your past attempts with dates, scores, and exercise details.",
             "Click on any attempt to see your detailed card placement vs. the correct answer.",
             "Track your improvement over time.",
-        ],
-    },
-    {
-        title: "Joining a Live Session",
-        description: "Participate in instructor-led real-time exercises.",
-        steps: [
-            "Your instructor will share a session code during class.",
-            "Go to the exercise page — if a live session is active, you'll see a prompt to join.",
-            "Complete the exercise in real-time alongside your classmates.",
-            "Results are shared with the instructor immediately after submission.",
         ],
     },
 ];
