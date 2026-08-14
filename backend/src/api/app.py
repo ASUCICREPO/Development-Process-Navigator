@@ -872,7 +872,7 @@ def _send_invite_email(to_email: str, instructor_name: str, instructor_email: st
             </p>
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;">
             <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-                Arizona State University · W.P. Carey School of Business · ASU Cloud Innovation Center
+                Arizona State University · W.P. Carey School of Business · ASU AI Cloud Innovation Center
             </p>
         </div>
     </body>

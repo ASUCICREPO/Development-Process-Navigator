@@ -193,4 +193,4 @@ This application was developed by :
 
 ## License
 
-Arizona State University · W.P. Carey School of Business · ASU Cloud Innovation Center
+Arizona State University · W.P. Carey School of Business · ASU AI Cloud Innovation Center

@@ -228,4 +228,4 @@ Log out and log back in. Sessions use Cognito JWTs which expire after a set peri
 
 ---
 
-*Arizona State University · W.P. Carey School of Business · ASU Cloud Innovation Center*
+*Arizona State University · W.P. Carey School of Business · ASU AI Cloud Innovation Center*
