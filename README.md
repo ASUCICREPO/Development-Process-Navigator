@@ -175,7 +175,7 @@ cdk deploy --profile <your-profile>
 ## Instructor Access Code
 
 Instructors register with a private access code to prevent unauthorized accounts.  
-Current code: **`MRED-2026`** (set as Lambda env var `INSTRUCTOR_ACCESS_CODE`).
+The code is set as a Lambda environment variable (`INSTRUCTOR_ACCESS_CODE`) in the CDK stack.
 
 **To rotate:**
 1. Update `INSTRUCTOR_ACCESS_CODE` in `infrastructure/lib/processcanvas-stack.ts`

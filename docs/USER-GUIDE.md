@@ -25,7 +25,6 @@ This guide covers both roles. Jump to your section:
 
 **Instructors:**
 - You need an **Instructor Access Code** from your department administrator
-- Current code: **`MRED-2026`** — keep this private
 
 ### Logging In
 
