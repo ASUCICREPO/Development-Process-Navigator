@@ -24,6 +24,10 @@ export default function Home() {
   const [loggedInRole, setLoggedInRole] = useState<string | null>(
     typeof window !== "undefined" ? getRole() : null
   );
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
 
   async function onLogin() {
     setMsg(null);
@@ -68,6 +72,55 @@ export default function Home() {
       await onLogin();
     } catch (e: any) {
       setMsg({ text: e.message, ok: false });
+      setLoading(false);
+    }
+  }
+
+  async function onForgotPassword() {
+    setMsg(null);
+    if (!email || !email.includes("@")) {
+      setMsg({ text: "Please enter your email address first.", ok: false });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Failed to send reset code");
+      setCodeSent(true);
+      setMsg({ text: "Reset code sent to your email. Check your inbox.", ok: true });
+    } catch (e: any) {
+      setMsg({ text: e.message, ok: false });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onConfirmReset() {
+    setMsg(null);
+    if (!resetCode || !newPassword) {
+      setMsg({ text: "Enter the code from your email and a new password.", ok: false });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/confirm-reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code: resetCode, newPassword }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Reset failed");
+      setMsg({ text: "Password reset! You can now log in.", ok: true });
+      setForgotMode(false);
+      setCodeSent(false);
+      setResetCode("");
+      setNewPassword("");
+    } catch (e: any) {
+      setMsg({ text: e.message, ok: false });
+    } finally {
       setLoading(false);
     }
   }
@@ -170,6 +223,65 @@ export default function Home() {
           <p style={styles.hint}>
             Password: min 8 characters, include a letter and number.
           </p>
+
+          {mode === "login" && !forgotMode && (
+            <button
+              onClick={() => setForgotMode(true)}
+              style={{ background: "none", border: "none", color: "#8C1D40", fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 8, padding: 0 }}
+            >
+              Forgot Password?
+            </button>
+          )}
+
+          {forgotMode && (
+            <div style={{ marginTop: 16, padding: 16, background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb" }}>
+              {!codeSent ? (
+                <>
+                  <p style={{ fontSize: 13, color: "#374151", margin: "0 0 12px" }}>
+                    Enter your email above, then click below to receive a reset code.
+                  </p>
+                  <button
+                    style={{ ...styles.submitBtn, marginTop: 0 }}
+                    onClick={onForgotPassword}
+                    disabled={loading}
+                  >
+                    {loading ? "Sending..." : "Send Reset Code"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label style={styles.label}>Reset Code (from email)</label>
+                  <input
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    placeholder="Enter 6-digit code"
+                    style={styles.input}
+                  />
+                  <label style={styles.label}>New Password</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="New password"
+                    style={styles.input}
+                  />
+                  <button
+                    style={{ ...styles.submitBtn, marginTop: 12 }}
+                    onClick={onConfirmReset}
+                    disabled={loading}
+                  >
+                    {loading ? "Resetting..." : "Reset Password"}
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => { setForgotMode(false); setCodeSent(false); setMsg(null); }}
+                style={{ background: "none", border: "none", color: "#6b7280", fontSize: 12, cursor: "pointer", marginTop: 8, padding: 0 }}
+              >
+                ← Back to login
+              </button>
+            </div>
+          )}
 
           {mode === "register" && (
             <>

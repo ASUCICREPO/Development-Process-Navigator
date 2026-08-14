@@ -242,6 +242,46 @@ def login(body: dict) -> dict:
             "expiresIn": tokens.get("ExpiresIn")}
 
 
+def forgot_password(body: dict) -> dict:
+    """Initiate Cognito forgot-password flow — sends a verification code to the user's email."""
+    email = body.get("email", "").strip()
+    if not email:
+        raise ValidationError("Email is required.")
+    try:
+        _cognito.forgot_password(ClientId=USER_POOL_CLIENT_ID, Username=email)
+    except _cognito.exceptions.UserNotFoundException:
+        # Don't reveal whether the email exists — return success either way
+        pass
+    except Exception as e:
+        raise AppError(f"Could not send reset code: {str(e)}")
+    return {"ok": True, "message": "If an account exists with that email, a reset code has been sent."}
+
+
+def confirm_reset(body: dict) -> dict:
+    """Confirm password reset with the code sent to user's email."""
+    email = body.get("email", "").strip()
+    code = body.get("code", "").strip()
+    new_password = body.get("newPassword", "")
+    if not email or not code or not new_password:
+        raise ValidationError("Email, code, and new password are required.")
+    if len(new_password) < 8:
+        raise ValidationError("Password must be at least 8 characters.")
+    try:
+        _cognito.confirm_forgot_password(
+            ClientId=USER_POOL_CLIENT_ID,
+            Username=email,
+            ConfirmationCode=code,
+            Password=new_password,
+        )
+    except _cognito.exceptions.CodeMismatchException:
+        raise ValidationError("Invalid or expired reset code.")
+    except _cognito.exceptions.ExpiredCodeException:
+        raise ValidationError("Reset code has expired. Please request a new one.")
+    except Exception as e:
+        raise AppError(f"Password reset failed: {str(e)}")
+    return {"ok": True, "message": "Password has been reset successfully."}
+
+
 def _associate_join_code(student_id: str, code: str) -> None:
     jc = _t("JoinCodes").get_item(Key={"code": code}).get("Item")
     if not jc or jc.get("status") != "Active":
@@ -976,6 +1016,10 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 201, register(body)
     if method == "POST" and seg == ["auth", "login"]:
         return 200, login(body)
+    if method == "POST" and seg == ["auth", "forgot-password"]:
+        return 200, forgot_password(body)
+    if method == "POST" and seg == ["auth", "confirm-reset"]:
+        return 200, confirm_reset(body)
 
     # Everything below requires authentication
     if principal is None:
