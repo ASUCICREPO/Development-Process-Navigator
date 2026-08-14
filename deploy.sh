@@ -16,10 +16,16 @@
 set -euo pipefail
 
 # ---- Configuration ----------------------------------------------------------
-PROFILE="${AWS_PROFILE:-default}"
+PROFILE="${AWS_PROFILE:-}"
 REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="ProcessCanvasStack"
 SES_EMAIL_DOMAIN="${SES_EMAIL_DOMAIN:-asu.edu}"
+
+# Build profile flag (empty if no profile set — works for CloudShell)
+PROFILE_FLAG=""
+if [ -n "$PROFILE" ]; then
+  PROFILE_FLAG="--profile $PROFILE"
+fi
 
 # Colours
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -42,10 +48,11 @@ if [ "$NODE_VER" -lt 18 ]; then
   fail "Node.js 18+ required (found v$NODE_VER)"
 fi
 
-AWS_ACCOUNT=$(aws sts get-caller-identity --profile "$PROFILE" --query Account --output text 2>/dev/null) \
-  || fail "AWS credentials not configured. Run: aws configure --profile $PROFILE"
+AWS_ACCOUNT=$(aws sts get-caller-identity $PROFILE_FLAG --query Account --output text 2>/dev/null) \
+  || AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text 2>/dev/null) \
+  || fail "AWS credentials not configured. Run: aws configure"
 
-ok "AWS account: $AWS_ACCOUNT | region: $REGION | profile: $PROFILE"
+ok "AWS account: $AWS_ACCOUNT | region: $REGION | profile: ${PROFILE:-default}"
 
 # ---- Install CDK CLI ---------------------------------------------------------
 log "Installing/updating AWS CDK CLI..."
@@ -56,13 +63,13 @@ ok "CDK version: $(cdk --version)"
 log "Bootstrapping CDK in $AWS_ACCOUNT/$REGION (safe to re-run)..."
 cd "$(dirname "$0")/infrastructure"
 npm install --quiet
-cdk bootstrap "aws://$AWS_ACCOUNT/$REGION" --profile "$PROFILE" --quiet || \
+cdk bootstrap "aws://$AWS_ACCOUNT/$REGION" $PROFILE_FLAG --quiet || \
   warn "Bootstrap returned non-zero (may already be bootstrapped — continuing)"
 
 # ---- Deploy CDK stack --------------------------------------------------------
 log "Deploying CDK stack: $STACK_NAME..."
 cdk deploy "$STACK_NAME" \
-  --profile "$PROFILE" \
+  $PROFILE_FLAG \
   --require-approval never \
   --context sesEmailDomain="$SES_EMAIL_DOMAIN" \
   --outputs-file /tmp/cdk-outputs.json
@@ -136,7 +143,7 @@ cd ..
 DEPLOY_OUT=$(aws amplify create-deployment \
   --app-id "$AMPLIFY_APP_ID" \
   --branch-name main \
-  --profile "$PROFILE" \
+  $PROFILE_FLAG \
   --region "$REGION" \
   --output json)
 
@@ -151,7 +158,7 @@ aws amplify start-deployment \
   --app-id "$AMPLIFY_APP_ID" \
   --branch-name main \
   --job-id "$JOB_ID" \
-  --profile "$PROFILE" \
+  $PROFILE_FLAG \
   --region "$REGION" >/dev/null
 
 log "Waiting for Amplify deployment to complete..."
@@ -160,7 +167,7 @@ for i in $(seq 1 40); do
     --app-id "$AMPLIFY_APP_ID" \
     --branch-name main \
     --job-id "$JOB_ID" \
-    --profile "$PROFILE" \
+    $PROFILE_FLAG \
     --region "$REGION" \
     --query "job.summary.status" \
     --output text 2>/dev/null || echo "UNKNOWN")
