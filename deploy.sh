@@ -118,6 +118,22 @@ fi
 ok "REST API URL : $REST_API_URL"
 ok "Amplify App  : $AMPLIFY_APP_ID"
 
+# ---- Set APP_URL on the Lambda (for invite emails) ---------------------------
+if [ -n "$AMPLIFY_APP_ID" ] && [ "$AMPLIFY_APP_ID" != "<AmplifyAppId from CloudFormation outputs>" ]; then
+  FRONTEND_URL="https://main.${AMPLIFY_APP_ID}.amplifyapp.com"
+  LAMBDA_NAME=$(aws lambda list-functions $PROFILE_FLAG --region "$REGION" \
+    --query "Functions[?contains(FunctionName,'ProcessCanvas') && contains(FunctionName,'ApiFn')].FunctionName" \
+    --output text 2>/dev/null || echo "")
+  if [ -n "$LAMBDA_NAME" ]; then
+    aws lambda update-function-configuration \
+      --function-name "$LAMBDA_NAME" \
+      --environment "Variables={$(aws lambda get-function-configuration --function-name "$LAMBDA_NAME" $PROFILE_FLAG --region "$REGION" --query 'Environment.Variables' --output json | python3 -c "import sys,json; d=json.load(sys.stdin); d['APP_URL']='$FRONTEND_URL'; print(','.join(f'{k}={v}' for k,v in d.items()))")}" \
+      $PROFILE_FLAG --region "$REGION" >/dev/null 2>&1 && \
+      ok "Set APP_URL=$FRONTEND_URL on Lambda" || \
+      warn "Could not set APP_URL on Lambda — set it manually in the Lambda console"
+  fi
+fi
+
 # ---- Build frontend ----------------------------------------------------------
 log "Building Next.js frontend..."
 cd ../frontend

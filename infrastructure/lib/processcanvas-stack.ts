@@ -319,9 +319,6 @@ export class ProcessCanvasStack extends Stack {
       stage: "PRODUCTION",
     });
 
-    // Set APP_URL on the Lambda now that we know the Amplify domain
-    apiFn.addEnvironment("APP_URL", `https://${mainBranch.branchName}.${amplifyApp.defaultDomain}`);
-
     // -------------------------------------------------------------------------
     // Outputs
     // -------------------------------------------------------------------------
