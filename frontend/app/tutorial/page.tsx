@@ -194,8 +194,8 @@ export default function TutorialPage() {
                 <h3 style={styles.tipsTitle}>💡 Quick Tips</h3>
                 <ul style={styles.tipsList}>
                     <li>Look for the <strong style={{ color: "#8C1D40" }}>ⓘ</strong> icons throughout the app — hover over them for contextual help.</li>
-                    <li>Instructors can switch to "Student View" using the toggle in the top-right to preview the student experience.</li>
-                    <li>Exercises can be attempted multiple times — use each attempt to improve your understanding.</li>
+                    <li>Exercises can be attempted up to two times — use your first attempt to learn, then resubmit for a better score.</li>
+                    <li>Instructors: share your Exercise ID or link with students. They can also find assigned exercises on their dashboard.</li>
                     <li>Need help? Contact your instructor or reach out to the ASU CIC team.</li>
                 </ul>
             </div>
