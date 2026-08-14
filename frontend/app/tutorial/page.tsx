@@ -159,23 +159,24 @@ export default function TutorialPage() {
                 </p>
             </div>
 
-            {/* Tab Switcher */}
-            {/* Tab Switcher - Instructors see both tabs, Students see only student tab */}
+            {/* Tab Switcher - Instructors see only instructor tab, Students see only student tab */}
             <div style={styles.tabRow}>
                 {isInstructor && (
                     <button
-                        style={activeTab === "instructor" ? styles.tabActive : styles.tabInactive}
+                        style={styles.tabActive}
                         onClick={() => { setActiveTab("instructor"); setExpandedIndex(0); }}
                     >
                         🎓 Instructor Guide
                     </button>
                 )}
-                <button
-                    style={activeTab === "student" ? styles.tabActive : styles.tabInactive}
-                    onClick={() => { setActiveTab("student"); setExpandedIndex(0); }}
-                >
-                    📝 Student Guide
-                </button>
+                {!isInstructor && (
+                    <button
+                        style={styles.tabActive}
+                        onClick={() => { setActiveTab("student"); setExpandedIndex(0); }}
+                    >
+                        📝 Student Guide
+                    </button>
+                )}
             </div>
 
             {/* Guides Accordion */}
