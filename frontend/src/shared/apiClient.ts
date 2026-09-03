@@ -40,6 +40,18 @@ export class ApiClient {
   saveReflection = (attemptId: string, response: string) =>
     this.request("POST", `/attempts/${attemptId}/reflection`, { response });
 
+  // Exercise — v2 multi-round (roundPlacements = { roundId: { cardId: [targetId] } })
+  saveRoundPlacements = (id: string, roundPlacements: unknown, budgetSchedule?: unknown) =>
+    this.request("PUT", `/exercises/${id}/placements`, { roundPlacements, budgetSchedule });
+  submitRounds = (id: string, roundPlacements: unknown, budgetSchedule?: unknown) =>
+    this.request("POST", `/exercises/${id}/submit`, { roundPlacements, budgetSchedule });
+  verifyRounds = (id: string, roundPlacements: unknown) =>
+    this.request("POST", `/exercises/${id}/verify`, { roundPlacements });
+  resubmitRounds = (id: string, roundPlacements: unknown, budgetSchedule?: unknown) =>
+    this.request("POST", `/exercises/${id}/resubmit`, { roundPlacements, budgetSchedule });
+  saveBudgetSchedule = (id: string, budgetSchedule: unknown) =>
+    this.request("PUT", `/exercises/${id}/budget-schedule`, { budgetSchedule });
+
   // Authoring
   listTemplates = () => this.request("GET", `/templates`);
   listExercises = () => this.request("GET", `/exercises`);

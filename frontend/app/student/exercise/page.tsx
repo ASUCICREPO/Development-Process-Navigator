@@ -2,14 +2,15 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../../src/shared/session";
 import { ExerciseBoard } from "../../../src/student/ExerciseBoard";
+import { RoundsBoard } from "../../../src/student/RoundsBoard";
 import { Sidebar } from "../../../src/shared/Sidebar";
-import { ExerciseView } from "../../../src/shared/types";
+import { ExerciseView, ExerciseViewV2, isV2 } from "../../../src/shared/types";
 import { useRoleGuard } from "../../../src/shared/useRoleGuard";
 
 export default function ExercisePage() {
     const allowed = useRoleGuard("STUDENT");
     const [exerciseId, setExerciseId] = useState("");
-    const [exercise, setExercise] = useState<ExerciseView | null>(null);
+    const [exercise, setExercise] = useState<ExerciseView | ExerciseViewV2 | null>(null);
     const [started, setStarted] = useState(false);
     const [err, setErr] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ export default function ExercisePage() {
         setErr(null);
         setLoading(true);
         try {
-            const ex = (await api().getExercise(targetId)) as ExerciseView;
+            const ex = (await api().getExercise(targetId)) as ExerciseView | ExerciseViewV2;
             setExercise(ex);
         } catch (e: any) {
             setErr(e.message);
@@ -55,35 +56,48 @@ export default function ExercisePage() {
     if (exercise && started) {
         return (
             <div style={{ marginTop: 56 }}>
-                <ExerciseBoard api={api()} exercise={exercise} />
+                {isV2(exercise)
+                    ? <RoundsBoard api={api()} exercise={exercise} />
+                    : <ExerciseBoard api={api()} exercise={exercise as ExerciseView} />}
             </div>
         );
     }
 
     // Exercise loaded but not yet started — intro card with sidebar
     if (exercise && !started) {
+        const v2 = isV2(exercise);
+        const roundCount = v2 ? (exercise as ExerciseViewV2).rounds.length : 0;
+        const stageCount = v2 ? (exercise as ExerciseViewV2).stages.length : (exercise as ExerciseView).phases.length;
+        const title = v2 ? ((exercise as ExerciseViewV2).name || exercise.exerciseId) : exercise.exerciseId;
         return (
             <div style={{ display: "flex" }}>
                 <Sidebar activeItem="exercise" />
                 <main className="main-content">
                     <div style={styles.introWrapper}>
                         <div style={styles.introCard}>
-                            <span style={styles.badge}>Standard Scenario</span>
-                            <h1 style={styles.title}>{exercise.exerciseId}</h1>
+                            <span style={styles.badge}>{v2 ? "Card-Sorting Exercise" : "Standard Scenario"}</span>
+                            <h1 style={styles.title}>{title}</h1>
                             <p style={styles.description}>
-                                In this exercise you will sequence the roles, tasks, and analytical tests involved
-                                in developing a commercial project. Drag each activity card into the
-                                phase where it typically occurs. A card may appear in more than one phase.
+                                {v2
+                                    ? ((exercise as ExerciseViewV2).teachingFocus ||
+                                        "Work through five rounds: sequence the process stages, place the major activities, then match professionals, tasks/deliverables, and developer decisions. Finish by drafting a budget and schedule.")
+                                    : "In this exercise you will sequence the roles, tasks, and analytical tests involved in developing a commercial project. Drag each activity card into the phase where it typically occurs. A card may appear in more than one phase."}
                             </p>
 
                             <div style={styles.statsRow}>
+                                {v2 && (
+                                    <div style={styles.statBox}>
+                                        <div style={styles.statNumber}>{roundCount}</div>
+                                        <div style={styles.statLabel}>Rounds</div>
+                                    </div>
+                                )}
                                 <div style={styles.statBox}>
                                     <div style={styles.statNumber}>{exercise.activities.length}</div>
-                                    <div style={styles.statLabel}>Activity Cards</div>
+                                    <div style={styles.statLabel}>{v2 ? "Major Activities" : "Activity Cards"}</div>
                                 </div>
                                 <div style={styles.statBox}>
-                                    <div style={styles.statNumber}>{exercise.phases.length}</div>
-                                    <div style={styles.statLabel}>Phases</div>
+                                    <div style={styles.statNumber}>{stageCount}</div>
+                                    <div style={styles.statLabel}>{v2 ? "Process Stages" : "Phases"}</div>
                                 </div>
                             </div>
 
