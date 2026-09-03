@@ -32,10 +32,19 @@ export default function ExercisesPage() {
         authed("/templates")
             .then((r) => {
                 setTemplates(r.templates);
-                if (r.templates[0]) setTemplateId(r.templates[0].templateId);
+                if (r.templates[0]) {
+                    setTemplateId(r.templates[0].templateId);
+                    setName(r.templates[0].name);
+                }
             })
             .catch((e) => setErr(e.message));
     }, []);
+
+    function onTemplateChange(id: string) {
+        setTemplateId(id);
+        const t = templates.find((x) => x.templateId === id);
+        if (t) setName(t.name);
+    }
 
     async function createAndApply() {
         setErr(null);
@@ -79,18 +88,22 @@ export default function ExercisesPage() {
 
                         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Create New Exercise</h3>
 
-                        <label style={styles.label}>Template</label>
+                        <label style={styles.label}>Scenario / Template</label>
                         <select
                             value={templateId}
-                            onChange={(e) => setTemplateId(e.target.value)}
+                            onChange={(e) => onTemplateChange(e.target.value)}
                             style={styles.select}
                         >
                             {templates.map((t) => (
                                 <option key={t.templateId} value={t.templateId}>
-                                    {t.name} ({t.source})
+                                    {t.name} ({t.source === "SYSTEM_SEEDED" ? "Scenario" : "Saved"})
                                 </option>
                             ))}
                         </select>
+                        <p style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>
+                            The five scenarios (Land Speculation, Master-Planned Community, Finished Lots,
+                            Multi-Tenant Retail, Residential Condominium) each run the full five-round card sort.
+                        </p>
 
                         <label style={styles.label}>Exercise Name</label>
                         <input

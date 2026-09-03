@@ -17,6 +17,7 @@ dist/
 build/
 .next/
 cdk.out/
+*.tsbuildinfo
 
 # Kiro workspace config
 .kiro/
