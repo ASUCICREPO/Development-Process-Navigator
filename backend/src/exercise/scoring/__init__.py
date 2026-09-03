@@ -1,17 +1,26 @@
 from .scoring import (
     ActivityConfig,
+    CardConfig,
     CardFeedback,
+    CardPlacement,
+    CardResult,
     Configuration,
     Placement,
     PhaseEvaluation,
+    RoundConfig,
+    RoundResult,
     ScoreResult,
+    TargetEvaluation,
+    WeakestCard,
     WeakestMatch,
     classify,
     earned_for,
     score,
+    score_targets,
 )
 
 __all__ = [
+    # Phase-typed (backward compatible)
     "ActivityConfig",
     "Configuration",
     "Placement",
@@ -22,4 +31,13 @@ __all__ = [
     "classify",
     "earned_for",
     "score",
+    # Generic string-target core (multi-round)
+    "CardConfig",
+    "RoundConfig",
+    "CardPlacement",
+    "TargetEvaluation",
+    "CardResult",
+    "WeakestCard",
+    "RoundResult",
+    "score_targets",
 ]

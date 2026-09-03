@@ -88,3 +88,69 @@ def test_determinism():
     config = cfg(act("a", PLANNING=60, CONSTRUCTION=40, OPERATIONS=0))
     p = [place("a", "PLANNING")]
     assert sc.score(p, config) == sc.score(p, config)
+
+
+# ---- Generic string-target (multi-round) scoring --------------------------
+
+def rnd(*cards):
+    return sc.RoundConfig(cards=list(cards))
+
+
+def card(cid, **weights):
+    return sc.CardConfig(card_id=cid, weights=dict(weights))
+
+
+def cplace(cid, *targets):
+    return sc.CardPlacement(card_id=cid, targets=frozenset(targets))
+
+
+def test_targets_perfect_match_to_activities():
+    # Round 3: professionals matched to major activities.
+    r = rnd(
+        card("architect", act8=100, act6=40),
+        card("gc", act11=100),
+    )
+    placements = [cplace("architect", "act8"), cplace("gc", "act11")]
+    result = sc.score_targets(placements, r)
+    assert result.score_percent == 100
+    assert result.weakest is None
+
+
+def test_targets_multiple_defensible_matches_get_full_credit():
+    # A professional legitimately maps to several activities; placing in a
+    # secondary target still earns; primary target earns full, capped at max.
+    r = rnd(card("attorney", act2=100, act4=80, act7=60))
+    # Placed in two defensible targets -> capped at max (100).
+    result = sc.score_targets([cplace("attorney", "act2", "act4")], r)
+    assert result.total_earned == 100
+    assert result.score_percent == 100
+
+
+def test_targets_partial_when_only_secondary_matched():
+    r = rnd(card("attorney", act2=100, act4=80))
+    result = sc.score_targets([cplace("attorney", "act4")], r)
+    assert result.total_earned == 80
+    assert result.denominator == 100
+    assert result.score_percent == 80
+
+
+def test_targets_weakest_points_at_missed_primary():
+    r = rnd(card("commissioning", act13=100))
+    result = sc.score_targets([], r)
+    assert result.score_percent == 0
+    assert result.weakest.card_id == "commissioning"
+    assert result.weakest.target == "act13"
+
+
+def test_targets_no_penalty_for_extra_placement():
+    r = rnd(card("planner", act6=100, act7=60))
+    result = sc.score_targets([cplace("planner", "act6", "actUNRELATED")], r)
+    assert result.total_earned == 100
+    assert result.score_percent == 100
+
+
+def test_targets_classification():
+    c = card("x", a=80, b=40, c=0)
+    assert sc.classify(c.weight_for("a"), c.max_weight()) == CardStatus.CORRECT
+    assert sc.classify(c.weight_for("b"), c.max_weight()) == CardStatus.PARTIAL
+    assert sc.classify(c.weight_for("c"), c.max_weight()) == CardStatus.INCORRECT
