@@ -10,7 +10,19 @@ from .seed_templates import build_seed_template
 
 
 def validate_configuration(snapshot: dict) -> None:
-    """BR-4.1: >=1 activity and every activity has >=1 mapping with weight > 0."""
+    """Validate a configuration snapshot.
+
+    v2 (multi-round) snapshots are validated round-by-round: each round needs
+    at least one card and every card needs a mapping with weight > 0.
+
+    Legacy snapshots keep BR-4.1: >=1 activity and every activity has >=1
+    mapping with weight > 0.
+    """
+    rounds = snapshot.get("rounds")
+    if rounds:
+        _validate_rounds(rounds)
+        return
+
     activities = snapshot.get("activities", [])
     mappings = snapshot.get("mappings", [])
     if not activities:
@@ -19,6 +31,28 @@ def validate_configuration(snapshot: dict) -> None:
     missing = [a["activityId"] for a in activities if a["activityId"] not in weighted]
     if missing:
         raise ValidationError(f"Every activity needs a phase weight > 0. Missing: {missing}")
+
+
+def _validate_rounds(rounds: list) -> None:
+    """Every non-empty round must have cards, targets, and each card mapped > 0."""
+    playable = 0
+    for rnd in rounds:
+        cards = rnd.get("cards", [])
+        mappings = rnd.get("mappings", [])
+        if not cards:
+            if rnd.get("optional"):
+                continue
+            raise ValidationError(f"Round '{rnd.get('roundId')}' has no cards.")
+        if not rnd.get("targets"):
+            raise ValidationError(f"Round '{rnd.get('roundId')}' has no targets.")
+        weighted = {m["cardId"] for m in mappings if m.get("weight", 0) > 0}
+        missing = [c["cardId"] for c in cards if c["cardId"] not in weighted]
+        if missing:
+            raise ValidationError(
+                f"Round '{rnd.get('roundId')}': every card needs a mapping > 0. Missing: {missing}")
+        playable += 1
+    if playable == 0:
+        raise ValidationError("Configuration must have at least one playable round.")
 
 
 class AuthoringService:
