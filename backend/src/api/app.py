@@ -13,8 +13,9 @@ from datetime import datetime, timezone
 
 import boto3
 
-from ..authoring.seed_templates import build_seed_template
+from ..authoring.seed_templates import all_scenarios, build_seed_template
 from ..authoring.service import validate_configuration
+from ..exercise import rounds
 from ..exercise.models import Placement as ExPlacement, StudentExerciseState
 from ..exercise.service import ExerciseService
 from ..exercise.scoring import scoring as sc
@@ -331,13 +332,19 @@ def _verify_instructor_email(email: str) -> None:
 # ---- Templates & Authoring -------------------------------------------------
 
 def _ensure_seed_template() -> None:
-    existing = _t("Templates").scan(Limit=1).get("Items")
-    if existing:
-        return
-    snap = build_seed_template()
-    _t("Templates").put_item(Item={
-        "templateId": "seed-real-estate", "source": "SYSTEM_SEEDED",
-        "name": snap["name"], "snapshot": json.dumps(snap)})
+    """Register the five scenario templates (idempotent per scenario).
+
+    Each scenario from the Instructor Manual (§5) is a separate SYSTEM_SEEDED
+    template so instructors can choose the scenario that fits their learning goal.
+    """
+    existing_ids = {t.get("templateId") for t in _t("Templates").scan().get("Items", [])}
+    for snap in all_scenarios():
+        template_id = f"seed-scenario-{snap['scenarioId'].lower()}"
+        if template_id in existing_ids:
+            continue
+        _t("Templates").put_item(Item={
+            "templateId": template_id, "source": "SYSTEM_SEEDED",
+            "name": snap["name"], "snapshot": json.dumps(snap)})
 
 
 def list_templates(principal: Principal) -> dict:
@@ -422,16 +429,64 @@ def _next_version_number(config_id: str) -> int:
 def get_exercise(principal: Principal, exercise_id: str) -> dict:
     ex = _exercise_record(exercise_id)
     snap = _version_snapshot(ex["versionId"], ex["configId"])
+
+    if rounds.is_multi_round(snap):
+        # v2 multi-round exercise: return rounds + round-scoped placements.
+        item = _t("StudentExerciseState").get_item(
+            Key={"exerciseId": exercise_id, "studentId": principal.user_id}).get("Item")
+        round_placements = json.loads(item.get("roundPlacements", "{}")) if item else {}
+        budget_schedule = json.loads(item.get("budgetSchedule", "{}")) if item else {}
+        return {
+            "exerciseId": exercise_id,
+            "version": 2,
+            "scenarioId": snap.get("scenarioId"),
+            "name": snap.get("name"),
+            "teachingFocus": snap.get("teachingFocus"),
+            "stages": snap.get("stages", []),
+            "activities": snap.get("activities", []),
+            "rounds": _rounds_view(snap),
+            "costCategories": snap.get("costCategories", []),
+            "roundPlacements": round_placements,
+            "budgetSchedule": budget_schedule,
+            "attemptCount": int(item.get("attemptCount", 0)) if item else 0,
+            "locked": bool(item.get("locked", False)) if item else False,
+        }
+
+    # Legacy single-sort exercise.
     state = _load_state(exercise_id, principal.user_id)
     placements = {p.activity_id: sorted(ph.value for ph in p.phases) for p in state.placements}
     return {
         "exerciseId": exercise_id,
+        "version": 1,
         "phases": snap.get("phases", ["PLANNING", "CONSTRUCTION", "OPERATIONS"]),
         "activities": snap.get("activities", []),
         "placements": placements,
         "attemptCount": state.attempt_count,
         "locked": state.locked,
     }
+
+
+def _rounds_view(snap: dict) -> list[dict]:
+    """Rounds for the student board — cards + targets + instructions, WITHOUT weights."""
+    view = []
+    for rnd in snap.get("rounds", []):
+        if not rnd.get("cards"):
+            continue  # skip empty optional rounds
+        view.append({
+            "roundId": rnd["roundId"],
+            "order": rnd.get("order"),
+            "kind": rnd.get("kind"),
+            "cardType": rnd.get("cardType"),
+            "title": rnd.get("title"),
+            "instructions": rnd.get("instructions"),
+            "optional": bool(rnd.get("optional", False)),
+            "targetKind": rnd.get("targetKind"),
+            "targets": rnd.get("targets", []),
+            "cards": [{"cardId": c["cardId"], "cardType": c.get("cardType"),
+                       "title": c["title"], "description": c.get("description", "")}
+                      for c in rnd["cards"]],
+        })
+    return view
 
 
 def _placements_from_body(body: dict, valid_phases: set[str] | None = None) -> list[ExPlacement]:
@@ -464,7 +519,142 @@ def _exercise_valid_phases(exercise_id: str) -> set[str]:
         return set()
 
 
+def _exercise_snapshot(exercise_id: str) -> dict:
+    ex = _exercise_record(exercise_id)
+    return _version_snapshot(ex["versionId"], ex["configId"])
+
+
+def _is_multi_round(exercise_id: str) -> bool:
+    try:
+        return rounds.is_multi_round(_exercise_snapshot(exercise_id))
+    except Exception:
+        return False
+
+
+# ---- v2 multi-round state (round-scoped placements) ------------------------
+
+def _load_v2_state(exercise_id: str, student_id: str) -> dict:
+    item = _t("StudentExerciseState").get_item(
+        Key={"exerciseId": exercise_id, "studentId": student_id}).get("Item")
+    if not item:
+        return {"roundPlacements": {}, "budgetSchedule": {}, "attemptCount": 0, "locked": False}
+    return {
+        "roundPlacements": json.loads(item.get("roundPlacements", "{}")),
+        "budgetSchedule": json.loads(item.get("budgetSchedule", "{}")),
+        "attemptCount": int(item.get("attemptCount", 0)),
+        "locked": bool(item.get("locked", False)),
+    }
+
+
+def _save_v2_state(exercise_id: str, student_id: str, st: dict) -> None:
+    _t("StudentExerciseState").put_item(Item={
+        "exerciseId": exercise_id,
+        "studentId": student_id,
+        "roundPlacements": json.dumps(st.get("roundPlacements", {})),
+        "budgetSchedule": json.dumps(st.get("budgetSchedule", {})),
+        "attemptCount": st.get("attemptCount", 0),
+        "locked": st.get("locked", False),
+    })
+
+
+def _round_placements_from_body(body: dict) -> dict:
+    """Sanitize { roundId: { cardId: [targetId,...] } } from the request body."""
+    rp = body.get("roundPlacements", {})
+    if not isinstance(rp, dict):
+        raise ValidationError("roundPlacements must be an object.")
+    clean: dict = {}
+    for round_id, cards in rp.items():
+        if not isinstance(cards, dict):
+            continue
+        clean[round_id] = {cid: [str(t) for t in (targets or [])]
+                           for cid, targets in cards.items()}
+    return clean
+
+
+def _record_v2_attempt(exercise_id: str, student_id: str, snap: dict,
+                       result: dict, attempt_number: int, budget_schedule: dict) -> dict:
+    ex = _exercise_record(exercise_id)
+    attempt_id = str(uuid.uuid4())
+    _t("Attempts").put_item(Item={
+        "studentId": student_id,
+        "attemptId": attempt_id,
+        "exerciseId": exercise_id,
+        "instructorId": ex.get("ownerInstructorId", ""),
+        "versionId": ex.get("versionId", ""),
+        "attemptNumber": attempt_number,
+        "isFinal": True,
+        "scorePercent": result["scorePercent"],
+        "totalEarned": result["totalEarned"],
+        "denominator": result["denominator"],
+        "roundResults": json.dumps(result["roundResults"]),
+        "weakestMatch": json.dumps(result["weakestMatch"]),
+        "budgetSchedule": json.dumps(budget_schedule or {}),
+        "cardFeedback": json.dumps([]),  # legacy field kept for history rows
+        "reflectionResponse": None,
+        "sessionId": None,
+        "createdAt": _now(),
+        "version": 2,
+    })
+    return {
+        "attemptId": attempt_id,
+        "attemptNumber": attempt_number,
+        "isFinal": True,
+        "scorePercent": result["scorePercent"],
+        "roundResults": result["roundResults"],
+        "weakestMatch": result["weakestMatch"],
+    }
+
+
+def _submit_v2(exercise_id: str, student_id: str, body: dict) -> dict:
+    snap = _exercise_snapshot(exercise_id)
+    st = _load_v2_state(exercise_id, student_id)
+    if st["locked"] or st["attemptCount"] >= 2:
+        raise ConflictError("Exercise is locked.")
+    if body.get("roundPlacements"):
+        st["roundPlacements"] = _round_placements_from_body(body)
+    if body.get("budgetSchedule") is not None:
+        st["budgetSchedule"] = body.get("budgetSchedule") or {}
+
+    complete, missing = rounds.all_cards_placed(snap, st["roundPlacements"])
+    if not complete:
+        raise ValidationError(f"Incomplete. Place every card in every round. Missing: {missing}")
+
+    result = rounds.score_rounds(snap, st["roundPlacements"])
+    attempt_number = st["attemptCount"] + 1  # 1 (submit) or 2 (resubmit)
+    view = _record_v2_attempt(exercise_id, student_id, snap, result,
+                              attempt_number, st["budgetSchedule"])
+    st["attemptCount"] = attempt_number
+    if attempt_number >= 2:
+        st["locked"] = True
+    _save_v2_state(exercise_id, student_id, st)
+    _maybe_notify_session(body, student_id)
+    return view
+
+
+def _maybe_notify_session(body: dict, student_id: str) -> None:
+    """Best-effort live-session progress update (never blocks scoring)."""
+    session_id = body.get("sessionId")
+    if not session_id:
+        return
+    try:
+        _t("SessionParticipants").put_item(Item={
+            "sessionId": session_id, "studentId": student_id, "status": "Submitted"})
+    except Exception:
+        pass
+
+
 def save_placements(principal: Principal, exercise_id: str, body: dict) -> dict:
+    if _is_multi_round(exercise_id):
+        st = _load_v2_state(exercise_id, principal.user_id)
+        if st["locked"]:
+            raise ConflictError("Exercise is locked.")
+        if body.get("roundPlacements") is not None:
+            st["roundPlacements"] = _round_placements_from_body(body)
+        if body.get("budgetSchedule") is not None:
+            st["budgetSchedule"] = body.get("budgetSchedule") or {}
+        _save_v2_state(exercise_id, principal.user_id, st)
+        return {"ok": True}
+
     state = _load_state(exercise_id, principal.user_id)
     if state.locked:
         raise ConflictError("Exercise is locked.")
@@ -474,7 +664,22 @@ def save_placements(principal: Principal, exercise_id: str, body: dict) -> dict:
     return {"ok": True}
 
 
+def save_budget_schedule(principal: Principal, exercise_id: str, body: dict) -> dict:
+    """Manual §12 extension: persist the student's budget/schedule plan.
+
+    budgetSchedule shape: { activityId: {costCategory, durationDays, predecessors:[activityId]} }
+    """
+    if not _is_multi_round(exercise_id):
+        raise ValidationError("Budget/schedule is only available for multi-round exercises.")
+    st = _load_v2_state(exercise_id, principal.user_id)
+    st["budgetSchedule"] = body.get("budgetSchedule") or {}
+    _save_v2_state(exercise_id, principal.user_id, st)
+    return {"ok": True, "budgetSchedule": st["budgetSchedule"]}
+
+
 def submit(principal: Principal, exercise_id: str, body: dict) -> dict:
+    if _is_multi_round(exercise_id):
+        return _submit_v2(exercise_id, principal.user_id, body)
     state = _load_state(exercise_id, principal.user_id)
     if body.get("placements"):
         valid_phases = _exercise_valid_phases(exercise_id)
@@ -485,6 +690,16 @@ def submit(principal: Principal, exercise_id: str, body: dict) -> dict:
 
 
 def verify(principal: Principal, exercise_id: str, body: dict) -> dict:
+    if _is_multi_round(exercise_id):
+        # v2: verify just persists the revised placements between the two attempts.
+        st = _load_v2_state(exercise_id, principal.user_id)
+        if st["attemptCount"] != 1 or st["locked"]:
+            raise ConflictError("Verify is only available after the first submission.")
+        if body.get("roundPlacements") is not None:
+            st["roundPlacements"] = _round_placements_from_body(body)
+        _save_v2_state(exercise_id, principal.user_id, st)
+        return {"ok": True, "roundPlacements": st["roundPlacements"]}
+
     state = _load_state(exercise_id, principal.user_id)
     valid_phases = _exercise_valid_phases(exercise_id)
     revised = _placements_from_body(body, valid_phases)
@@ -495,6 +710,11 @@ def verify(principal: Principal, exercise_id: str, body: dict) -> dict:
 
 
 def resubmit(principal: Principal, exercise_id: str, body: dict) -> dict:
+    if _is_multi_round(exercise_id):
+        st = _load_v2_state(exercise_id, principal.user_id)
+        if st["attemptCount"] != 1 or st["locked"]:
+            raise ConflictError("Resubmission is not allowed (already used or not submitted).")
+        return _submit_v2(exercise_id, principal.user_id, body)
     state = _load_state(exercise_id, principal.user_id)
     valid_phases = _exercise_valid_phases(exercise_id)
     revised = _placements_from_body(body, valid_phases) if body.get("placements") else None
@@ -636,9 +856,14 @@ def _history_row(a: dict, full: bool = False) -> dict:
         "reflectionResponse": a.get("reflectionResponse"),
         "createdAt": a.get("createdAt"),
     }
+    if a.get("version") in (2, "2"):
+        row["version"] = 2
     if full:
         row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
         row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
+        if a.get("version") in (2, "2"):
+            row["roundResults"] = json.loads(a.get("roundResults", "[]"))
+            row["budgetSchedule"] = json.loads(a.get("budgetSchedule", "{}"))
         # Include exercise title
         try:
             ex = _t("Exercises").get_item(Key={"exerciseId": a["exerciseId"]}).get("Item")
@@ -1063,6 +1288,8 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 200, verify(principal, seg[1], body)
     if method == "POST" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "resubmit":
         return 200, resubmit(principal, seg[1], body)
+    if method == "PUT" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "budget-schedule":
+        return 200, save_budget_schedule(principal, seg[1], body)
     if method == "GET" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "results":
         return 200, class_results(principal, seg[1])
     if method == "GET" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "detailed-results":
