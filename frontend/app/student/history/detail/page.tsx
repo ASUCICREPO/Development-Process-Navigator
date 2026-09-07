@@ -18,6 +18,16 @@ interface CardFeedback {
     perPhase: PhaseResult[];
 }
 
+interface RoundResult {
+    roundId: string;
+    title: string;
+    cardType: string;
+    kind: string;
+    scorePercent: number;
+    totalEarned: number;
+    denominator: number;
+}
+
 interface AttemptDetail {
     attemptId: string;
     exerciseId: string;
@@ -25,10 +35,28 @@ interface AttemptDetail {
     isFinal: boolean;
     scorePercent: number;
     createdAt: string | null;
+    version?: number;
     cardFeedback: CardFeedback[];
-    weakestMatch: { activityId: string; phase: string; reflectionPrompt?: string } | null;
+    roundResults?: RoundResult[];
+    weakestMatch: { activityId?: string; phase?: string; target?: string; reflectionPrompt?: string } | null;
     reflectionResponse: string | null;
 }
+
+const CARD_TYPE_LABEL: Record<string, string> = {
+    PROCESS: "Process Stage",
+    MAJOR_ACTIVITY: "Major Activity",
+    PROFESSIONAL: "Professional",
+    TASK_DELIVERABLE: "Task / Deliverable",
+    DECISION: "Developer Decision",
+};
+
+const CARD_TYPE_COLOR: Record<string, string> = {
+    PROCESS: "#8C1D40",
+    MAJOR_ACTIVITY: "#1565c0",
+    PROFESSIONAL: "#2e7d32",
+    TASK_DELIVERABLE: "#e65100",
+    DECISION: "#6d4c00",
+};
 
 const PHASE_COLORS: Record<string, string> = {
     "PRE-DEVELOPMENT": "#8C1D40",
@@ -198,6 +226,18 @@ export default function HistoryDetailPage() {
     }
 
     const phases = Object.keys(phaseGroups);
+    const isMultiRound = (detail.roundResults?.length ?? 0) > 0;
+
+    function humanizeTarget(id?: string): string {
+        if (!id) return "";
+        if (activityNames[id]) return activityNames[id];
+        const stage = id.match(/^stage-(\d+)$/);
+        if (stage) return `Process Stage ${stage[1]}`;
+        const act = id.match(/^act-(\d+)$/);
+        if (act) return `Activity ${act[1]}`;
+        return id;
+    }
+    const weakestLabel = humanizeTarget(detail.weakestMatch?.target);
 
     return (
         <div style={{ display: "flex" }}>
@@ -221,10 +261,34 @@ export default function HistoryDetailPage() {
                     </div>
                 </div>
 
-                {/* Phase Breakdown */}
-                <h2 style={styles.sectionTitle}>Phase Breakdown</h2>
+                {/* v2 multi-round: Round Breakdown */}
+                {isMultiRound && (
+                    <>
+                        <h2 style={styles.sectionTitle}>Round Breakdown</h2>
+                        <div style={styles.roundList}>
+                            {detail.roundResults!.map((rr) => {
+                                const color = CARD_TYPE_COLOR[rr.cardType] || "#374151";
+                                return (
+                                    <div key={rr.roundId} style={styles.roundCard}>
+                                        <div style={styles.roundRowTop}>
+                                            <span style={{ ...styles.roundDot, background: color }} />
+                                            <span style={styles.roundLabel}>{CARD_TYPE_LABEL[rr.cardType] || rr.title}</span>
+                                            <span style={{ ...styles.roundPct, color }}>{rr.scorePercent}%</span>
+                                        </div>
+                                        <div style={styles.roundBarTrack}>
+                                            <div style={{ ...styles.roundBarFill, width: `${rr.scorePercent}%`, background: color }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
 
-                {phases.map((phase) => {
+                {/* Legacy single-sort: Phase Breakdown */}
+                {!isMultiRound && <h2 style={styles.sectionTitle}>Phase Breakdown</h2>}
+
+                {!isMultiRound && phases.map((phase) => {
                     const group = phaseGroups[phase];
                     const score = phaseScores[phase];
                     const pct = score.max > 0 ? Math.round((score.earned / score.max) * 100) : 0;
@@ -266,15 +330,24 @@ export default function HistoryDetailPage() {
                     );
                 })}
 
-                {/* Reflection Prompt */}
-                {detail.weakestMatch?.reflectionPrompt && (
+                {/* Reflection Prompt (legacy: explicit prompt; v2: derived from weakest match) */}
+                {detail.weakestMatch?.reflectionPrompt ? (
                     <div style={styles.reflectionCard}>
                         <h4 style={{ color: "#8C1D40", margin: "0 0 8px", fontSize: 14 }}>Reflection Prompt</h4>
                         <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
                             {detail.weakestMatch.reflectionPrompt}
                         </p>
                     </div>
-                )}
+                ) : (isMultiRound && detail.weakestMatch?.target) ? (
+                    <div style={styles.reflectionCard}>
+                        <h4 style={{ color: "#8C1D40", margin: "0 0 8px", fontSize: 14 }}>Reflection</h4>
+                        <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
+                            Your weakest match was{" "}
+                            <strong>{weakestLabel}</strong>.
+                            Consider why that placement matters and whether the sequence changes for this scenario.
+                        </p>
+                    </div>
+                ) : null}
 
                 {/* Instructor Feedback / Reflection Response */}
                 {detail.reflectionResponse && (
@@ -327,6 +400,14 @@ const styles: Record<string, React.CSSProperties> = {
     headerMeta: { fontSize: 13, color: "#6b7280", margin: "0 0 4px" },
     headerAttempts: { fontSize: 13, color: "#374151", margin: 0 },
     sectionTitle: { fontSize: 18, fontWeight: 700, color: "#111827", marginBottom: 16 },
+    roundList: { display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 },
+    roundCard: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "14px 18px" },
+    roundRowTop: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 },
+    roundDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0 },
+    roundLabel: { fontSize: 14, fontWeight: 600, color: "#111827", flex: 1 },
+    roundPct: { fontSize: 15, fontWeight: 800 },
+    roundBarTrack: { height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" },
+    roundBarFill: { height: "100%", borderRadius: 4 },
     phaseSection: {
         marginBottom: 20, background: "#fff", border: "1px solid #e5e7eb",
         borderRadius: 10, overflow: "hidden",
