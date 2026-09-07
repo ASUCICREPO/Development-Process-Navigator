@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { api } from "../../../../src/shared/session";
 import { Sidebar } from "../../../../src/shared/Sidebar";
 import { useRoleGuard } from "../../../../src/shared/useRoleGuard";
+import { TAXONOMY_LABELS } from "../../../../src/shared/taxonomyLabels";
 
 interface PhaseResult {
     phase: string;
@@ -266,6 +267,8 @@ export default function HistoryDetailPage() {
         if (!id) return "";
         if (activityNames[id]) return activityNames[id];
         if (fallbackTitles[id]) return fallbackTitles[id];
+        // Canonical built-in scenario labels (covers orphaned/old attempts).
+        if (TAXONOMY_LABELS[id]) return TAXONOMY_LABELS[id];
         const stage = id.match(/^stage-(\d+)$/);
         if (stage) return `Process Stage ${stage[1]}`;
         const act = id.match(/^act-(\d+)$/);

@@ -765,6 +765,38 @@ def get_history(principal: Principal, student_id: str) -> dict:
     return {"attempts": [_history_row(a) for a in items]}
 
 
+def _resolve_attempt_snapshot(a: dict) -> dict | None:
+    """Best-effort snapshot for an attempt, for label/breakdown enrichment.
+
+    Tries the immutable version snapshot the attempt was scored against; if that
+    version row is gone (config deleted/re-applied), falls back to the current
+    configuration snapshot so old attempts still resolve real names.
+    """
+    exercise_id = a.get("exerciseId")
+    if not exercise_id:
+        return None
+    ex = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
+    if not ex:
+        return None
+    config_id = ex.get("configId", "")
+    version_id = a.get("versionId") or ex.get("versionId")
+    # 1) exact version snapshot
+    if version_id and config_id:
+        try:
+            return _version_snapshot(version_id, config_id)
+        except Exception:
+            pass
+    # 2) current config snapshot
+    if config_id:
+        try:
+            cfg = _t("Configurations").get_item(Key={"configId": config_id}).get("Item")
+            if cfg:
+                return json.loads(cfg.get("snapshot", "{}"))
+        except Exception:
+            pass
+    return None
+
+
 def _attempt_label_maps(snap: dict) -> dict:
     """Build label + correct-target maps for a v2 snapshot, for the Review page.
 
@@ -805,34 +837,12 @@ def get_attempt(principal: Principal, attempt_id: str) -> dict:
     for a in resp.get("Items", []):
         if a["attemptId"] == attempt_id:
             row = _history_row(a, full=True)
-            # Enrich with activity titles from the version snapshot used at submission time
-            version_id = a.get("versionId")
-            exercise_id = a.get("exerciseId")
-            if version_id and exercise_id:
-                try:
-                    ex = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
-                    if ex:
-                        config_id = ex.get("configId", "")
-                        snap = _version_snapshot(version_id, config_id)
-                        activity_map = {act["activityId"]: act.get("title", act["activityId"])
+            snap = _resolve_attempt_snapshot(a)
+            if snap:
+                row["activityNames"] = {act["activityId"]: act.get("title", act["activityId"])
                                         for act in snap.get("activities", [])}
-                        row["activityNames"] = activity_map
-                        # v2: card titles, target labels, and correct targets for the breakdown
-                        if rounds.is_multi_round(snap):
-                            row.update(_attempt_label_maps(snap))
-                except Exception:
-                    # If version lookup fails, try getting names from current exercise config
-                    try:
-                        ex = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
-                        if ex and ex.get("configId"):
-                            cfg = _t("Configurations").get_item(Key={"configId": ex["configId"]}).get("Item")
-                            if cfg:
-                                snap = json.loads(cfg.get("snapshot", "{}"))
-                                activity_map = {act["activityId"]: act.get("title", act["activityId"])
-                                                for act in snap.get("activities", [])}
-                                row["activityNames"] = activity_map
-                    except Exception:
-                        pass
+                if rounds.is_multi_round(snap):
+                    row.update(_attempt_label_maps(snap))
             return row
     raise NotFoundError("Attempt not found.")
 
@@ -906,6 +916,48 @@ def class_results(principal: Principal, exercise_id: str) -> dict:
     return {"results": [_history_row(a) for a in finals]}
 
 
+import re as _re
+_UUID_RE = _re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-", _re.IGNORECASE)
+
+
+def _exercise_title(exercise_id: str) -> str:
+    """Resolve a human title for an exercise.
+
+    Prefers the scenario name stored in the (immutable) version snapshot, then
+    the configuration name, and never returns a raw UUID.
+    """
+    try:
+        ex = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
+        if not ex:
+            return "Card-Sorting Exercise"
+        config_id = ex.get("configId", "")
+        # 1) scenario name from the version snapshot the exercise was applied at
+        try:
+            snap = _version_snapshot(ex.get("versionId", ""), config_id)
+            name = (snap.get("name") or "").strip()
+            if name and not _UUID_RE.match(name):
+                return name
+        except Exception:
+            pass
+        # 2) configuration name (if it isn't a UUID)
+        cfg = _t("Configurations").get_item(Key={"configId": config_id}).get("Item") if config_id else None
+        if cfg:
+            name = (cfg.get("name") or "").strip()
+            if name and not _UUID_RE.match(name):
+                return name
+            # 2b) snapshot name stored on the config
+            try:
+                snap = json.loads(cfg.get("snapshot", "{}"))
+                name = (snap.get("name") or "").strip()
+                if name and not _UUID_RE.match(name):
+                    return name
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return "Card-Sorting Exercise"
+
+
 def _history_row(a: dict, full: bool = False) -> dict:
     row = {
         "attemptId": a["attemptId"], "exerciseId": a["exerciseId"],
@@ -918,21 +970,14 @@ def _history_row(a: dict, full: bool = False) -> dict:
     }
     if a.get("version") in (2, "2"):
         row["version"] = 2
+    # Always resolve a human title (used by both the history list and detail).
+    row["exerciseTitle"] = _exercise_title(a["exerciseId"])
     if full:
         row["cardFeedback"] = json.loads(a.get("cardFeedback", "[]"))
         row["weakestMatch"] = json.loads(a.get("weakestMatch", "null"))
         if a.get("version") in (2, "2"):
             row["roundResults"] = json.loads(a.get("roundResults", "[]"))
             row["budgetSchedule"] = json.loads(a.get("budgetSchedule", "{}"))
-        # Include exercise title
-        try:
-            ex = _t("Exercises").get_item(Key={"exerciseId": a["exerciseId"]}).get("Item")
-            if ex and ex.get("configId"):
-                cfg = _t("Configurations").get_item(Key={"configId": ex["configId"]}).get("Item")
-                if cfg:
-                    row["exerciseTitle"] = cfg.get("name", a["exerciseId"])
-        except Exception:
-            pass
     return row
 
 
