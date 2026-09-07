@@ -122,6 +122,8 @@ export default function HistoryDetailPage() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    // Fallback label maps built from the live exercise snapshot (covers old attempts).
+    const [fallbackTitles, setFallbackTitles] = useState<Record<string, string>>({});
 
     function toggleRound(roundId: string) {
         setExpanded((prev) => ({ ...prev, [roundId]: !prev[roundId] }));
@@ -145,24 +147,35 @@ export default function HistoryDetailPage() {
             // Use activity names from the API response if available
             if (res.activityNames && Object.keys(res.activityNames).length > 0) {
                 setActivityNames(res.activityNames);
-            } else {
-                // Fallback: fetch exercise data to get activity titles
-                try {
-                    const exData: any = await client.getExercise(res.exerciseId);
-                    const names: Record<string, string> = {};
-                    for (const act of (exData.activities ?? [])) {
-                        names[act.activityId] = act.title || act.activityId;
+            }
+
+            // Always try to build a comprehensive id->label map from the live
+            // exercise snapshot. This covers older attempts saved before the
+            // backend started returning cardTitles/targetLabels.
+            try {
+                const exData: any = await client.getExercise(res.exerciseId);
+                const names: Record<string, string> = {};
+                for (const st of (exData.stages ?? [])) {
+                    if (st.stageId) names[st.stageId] = st.title || st.stageId;
+                }
+                for (const act of (exData.activities ?? [])) {
+                    names[act.activityId] = act.title || act.activityId;
+                }
+                for (const rnd of (exData.rounds ?? [])) {
+                    for (const c of (rnd.cards ?? [])) {
+                        if (c.cardId) names[c.cardId] = c.title || c.cardId;
                     }
-                    setActivityNames(names);
-                } catch {
-                    // Exercise may have been deleted/re-applied — format IDs nicely
-                    const names: Record<string, string> = {};
-                    for (const card of (res.cardFeedback ?? [])) {
-                        const match = card.activityId.match(/act-(\d+)/);
-                        names[card.activityId] = match ? `Activity ${match[1]}` : card.activityId;
+                    for (const t of (rnd.targets ?? [])) {
+                        if (t.id) names[t.id] = t.label || t.id;
                     }
+                }
+                setFallbackTitles(names);
+                if (!res.activityNames || Object.keys(res.activityNames).length === 0) {
                     setActivityNames(names);
                 }
+            } catch {
+                // Exercise may have been deleted/re-applied — leave maps empty; the
+                // humanizer will produce a readable fallback.
             }
 
             // Set exercise title from API response
@@ -252,20 +265,26 @@ export default function HistoryDetailPage() {
     function humanizeTarget(id?: string): string {
         if (!id) return "";
         if (activityNames[id]) return activityNames[id];
+        if (fallbackTitles[id]) return fallbackTitles[id];
         const stage = id.match(/^stage-(\d+)$/);
         if (stage) return `Process Stage ${stage[1]}`;
         const act = id.match(/^act-(\d+)$/);
         if (act) return `Activity ${act[1]}`;
-        return id;
+        // Last resort: turn "pro-developer" / "task-marketstudy" into "Developer" / "Marketstudy"
+        const generic = id.replace(/^(pro|task|dec|proc)-/, "").replace(/[-_]/g, " ").trim();
+        return generic ? generic.replace(/\b\w/g, (m) => m.toUpperCase()) : id;
     }
     const weakestLabel = humanizeTarget(detail.weakestMatch?.target);
 
-    // Label / detail helpers for the v2 card breakdown.
+    // Label / detail helpers for the v2 card breakdown. Prefer the attempt's
+    // enriched maps, then the live-exercise fallback, then a humanized id.
     function labelOf(targetId: string): string {
-        return detail!.targetLabels?.[targetId] || activityNames[targetId] || humanizeTarget(targetId);
+        return detail!.targetLabels?.[targetId] || activityNames[targetId]
+            || fallbackTitles[targetId] || humanizeTarget(targetId);
     }
     function cardTitleOf(cardId: string): string {
-        return detail!.cardTitles?.[cardId] || activityNames[cardId] || humanizeTarget(cardId);
+        return detail!.cardTitles?.[cardId] || fallbackTitles[cardId]
+            || activityNames[cardId] || humanizeTarget(cardId);
     }
     function correctTargetsFor(roundId: string, cardId: string): string[] {
         return detail!.correctTargets?.[roundId]?.[cardId] ?? [];
