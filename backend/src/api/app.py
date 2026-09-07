@@ -765,6 +765,41 @@ def get_history(principal: Principal, student_id: str) -> dict:
     return {"attempts": [_history_row(a) for a in items]}
 
 
+def _attempt_label_maps(snap: dict) -> dict:
+    """Build label + correct-target maps for a v2 snapshot, for the Review page.
+
+    Returns:
+      cardTitles:   {cardId -> title}  (process/activity/professional/task/decision cards)
+      targetLabels: {targetId -> label} (stage titles + activity titles)
+      correctTargets: {roundId -> {cardId -> [best targetId(s)]}} (highest-weight targets)
+    """
+    card_titles: dict[str, str] = {}
+    target_labels: dict[str, str] = {}
+    correct: dict[str, dict[str, list]] = {}
+
+    for st in snap.get("stages", []):
+        target_labels[st["stageId"]] = st.get("title", st["stageId"])
+    for act in snap.get("activities", []):
+        target_labels[act["activityId"]] = act.get("title", act["activityId"])
+
+    for rnd in snap.get("rounds", []):
+        for c in rnd.get("cards", []):
+            card_titles[c["cardId"]] = c.get("title", c["cardId"])
+        # highest weight per card = the "correct"/primary target(s)
+        best: dict[str, tuple] = {}          # cardId -> (weight, [targets])
+        for m in rnd.get("mappings", []):
+            cid, tid, w = m["cardId"], m["targetId"], int(m["weight"])
+            cur = best.get(cid)
+            if cur is None or w > cur[0]:
+                best[cid] = (w, [tid])
+            elif w == cur[0]:
+                cur[1].append(tid)
+        correct[rnd["roundId"]] = {cid: tgts for cid, (w, tgts) in best.items()}
+
+    return {"cardTitles": card_titles, "targetLabels": target_labels,
+            "correctTargets": correct}
+
+
 def get_attempt(principal: Principal, attempt_id: str) -> dict:
     resp = _t("Attempts").scan()  # small scale; refine with GSI if needed
     for a in resp.get("Items", []):
@@ -782,6 +817,9 @@ def get_attempt(principal: Principal, attempt_id: str) -> dict:
                         activity_map = {act["activityId"]: act.get("title", act["activityId"])
                                         for act in snap.get("activities", [])}
                         row["activityNames"] = activity_map
+                        # v2: card titles, target labels, and correct targets for the breakdown
+                        if rounds.is_multi_round(snap):
+                            row.update(_attempt_label_maps(snap))
                 except Exception:
                     # If version lookup fails, try getting names from current exercise config
                     try:

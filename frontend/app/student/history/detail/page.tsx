@@ -18,6 +18,14 @@ interface CardFeedback {
     perPhase: PhaseResult[];
 }
 
+interface RoundCardResult {
+    cardId: string;
+    placedTargets: string[];
+    perTarget: { target: string; status: string; weight: number }[];
+    earned: number;
+    max: number;
+}
+
 interface RoundResult {
     roundId: string;
     title: string;
@@ -26,6 +34,7 @@ interface RoundResult {
     scorePercent: number;
     totalEarned: number;
     denominator: number;
+    cardResults?: RoundCardResult[];
 }
 
 interface AttemptDetail {
@@ -40,6 +49,9 @@ interface AttemptDetail {
     roundResults?: RoundResult[];
     weakestMatch: { activityId?: string; phase?: string; target?: string; reflectionPrompt?: string } | null;
     reflectionResponse: string | null;
+    cardTitles?: Record<string, string>;
+    targetLabels?: Record<string, string>;
+    correctTargets?: Record<string, Record<string, string[]>>;
 }
 
 const CARD_TYPE_LABEL: Record<string, string> = {
@@ -109,6 +121,11 @@ export default function HistoryDetailPage() {
     const [activityNames, setActivityNames] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState<string | null>(null);
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+    function toggleRound(roundId: string) {
+        setExpanded((prev) => ({ ...prev, [roundId]: !prev[roundId] }));
+    }
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -228,6 +245,10 @@ export default function HistoryDetailPage() {
     const phases = Object.keys(phaseGroups);
     const isMultiRound = (detail.roundResults?.length ?? 0) > 0;
 
+    // Avoid showing a raw UUID as the title.
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(exerciseTitle);
+    const displayTitle = (!exerciseTitle || looksLikeUuid) ? "Card-Sorting Exercise" : exerciseTitle;
+
     function humanizeTarget(id?: string): string {
         if (!id) return "";
         if (activityNames[id]) return activityNames[id];
@@ -239,6 +260,22 @@ export default function HistoryDetailPage() {
     }
     const weakestLabel = humanizeTarget(detail.weakestMatch?.target);
 
+    // Label / detail helpers for the v2 card breakdown.
+    function labelOf(targetId: string): string {
+        return detail!.targetLabels?.[targetId] || activityNames[targetId] || humanizeTarget(targetId);
+    }
+    function cardTitleOf(cardId: string): string {
+        return detail!.cardTitles?.[cardId] || activityNames[cardId] || humanizeTarget(cardId);
+    }
+    function correctTargetsFor(roundId: string, cardId: string): string[] {
+        return detail!.correctTargets?.[roundId]?.[cardId] ?? [];
+    }
+    function cardStatus(c: RoundCardResult): "CORRECT" | "PARTIAL" | "INCORRECT" {
+        if (c.max > 0 && c.earned >= c.max) return "CORRECT";
+        if (c.earned > 0) return "PARTIAL";
+        return "INCORRECT";
+    }
+
     return (
         <div style={{ display: "flex" }}>
             <Sidebar activeItem="history" />
@@ -248,10 +285,10 @@ export default function HistoryDetailPage() {
                     <DonutChart score={detail.scorePercent} size={90} />
                     <div style={styles.headerInfo}>
                         <div style={styles.badges}>
-                            <span style={styles.badgeMaroon}>{exerciseTitle.split(" ")[0] || "Exercise"}</span>
-                            <span style={styles.badgeGold}>Standard</span>
+                            <span style={styles.badgeMaroon}>{isMultiRound ? "Scenario" : "Exercise"}</span>
+                            <span style={styles.badgeGold}>{isMultiRound ? "5 Rounds" : "Standard"}</span>
                         </div>
-                        <h1 style={styles.headerTitle}>{exerciseTitle}</h1>
+                        <h1 style={styles.headerTitle}>{displayTitle}</h1>
                         <p style={styles.headerMeta}>
                             Submitted {detail.createdAt ? new Date(detail.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}
                         </p>
@@ -261,23 +298,63 @@ export default function HistoryDetailPage() {
                     </div>
                 </div>
 
-                {/* v2 multi-round: Round Breakdown */}
+                {/* v2 multi-round: Round Breakdown (expandable to card detail) */}
                 {isMultiRound && (
                     <>
                         <h2 style={styles.sectionTitle}>Round Breakdown</h2>
+                        <p style={{ fontSize: 13, color: "#6b7280", marginTop: -8, marginBottom: 16 }}>
+                            Click a round to see how each card was scored.
+                        </p>
                         <div style={styles.roundList}>
                             {detail.roundResults!.map((rr) => {
                                 const color = CARD_TYPE_COLOR[rr.cardType] || "#374151";
+                                const isOpen = !!expanded[rr.roundId];
+                                const cards = rr.cardResults ?? [];
                                 return (
                                     <div key={rr.roundId} style={styles.roundCard}>
-                                        <div style={styles.roundRowTop}>
+                                        <button style={styles.roundToggle} onClick={() => toggleRound(rr.roundId)}>
                                             <span style={{ ...styles.roundDot, background: color }} />
                                             <span style={styles.roundLabel}>{CARD_TYPE_LABEL[rr.cardType] || rr.title}</span>
                                             <span style={{ ...styles.roundPct, color }}>{rr.scorePercent}%</span>
-                                        </div>
+                                            <span style={styles.chevron}>{isOpen ? "▾" : "▸"}</span>
+                                        </button>
                                         <div style={styles.roundBarTrack}>
                                             <div style={{ ...styles.roundBarFill, width: `${rr.scorePercent}%`, background: color }} />
                                         </div>
+
+                                        {isOpen && cards.length > 0 && (
+                                            <div style={styles.cardDetailList}>
+                                                {cards.map((c) => {
+                                                    const status = cardStatus(c);
+                                                    const placed = c.placedTargets.map(labelOf).filter(Boolean);
+                                                    const correct = correctTargetsFor(rr.roundId, c.cardId).map(labelOf).filter(Boolean);
+                                                    const isRight = status === "CORRECT";
+                                                    const isPartial = status === "PARTIAL";
+                                                    return (
+                                                        <div key={c.cardId} style={styles.cardDetailRow}>
+                                                            <span style={{
+                                                                ...styles.statusMark,
+                                                                color: isRight ? "#16a34a" : isPartial ? "#f97316" : "#ef4444",
+                                                            }}>
+                                                                {isRight ? "✓" : isPartial ? "◐" : "✗"}
+                                                            </span>
+                                                            <div style={{ flex: 1 }}>
+                                                                <div style={styles.cardDetailTitle}>{cardTitleOf(c.cardId)}</div>
+                                                                <div style={styles.cardDetailMeta}>
+                                                                    {placed.length > 0
+                                                                        ? <>You placed it in: <strong>{placed.join(", ")}</strong></>
+                                                                        : <span style={{ fontStyle: "italic" }}>Not placed</span>}
+                                                                    {!isRight && correct.length > 0 && (
+                                                                        <> · Best match: <strong style={{ color: "#16a34a" }}>{correct.join(", ")}</strong></>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <span style={styles.earnedTag}>{c.earned}/{c.max}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -408,6 +485,23 @@ const styles: Record<string, React.CSSProperties> = {
     roundPct: { fontSize: 15, fontWeight: 800 },
     roundBarTrack: { height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" },
     roundBarFill: { height: "100%", borderRadius: 4 },
+    roundToggle: {
+        display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none",
+        border: "none", padding: 0, marginBottom: 8, cursor: "pointer", textAlign: "left" as const,
+    },
+    chevron: { fontSize: 12, color: "#9ca3af", width: 14 },
+    cardDetailList: { marginTop: 12, borderTop: "1px solid #f3f4f6", paddingTop: 8 },
+    cardDetailRow: {
+        display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0",
+        borderBottom: "1px solid #f8f8f8",
+    },
+    statusMark: { fontWeight: 700, fontSize: 15, width: 16, flexShrink: 0, lineHeight: 1.4 },
+    cardDetailTitle: { fontSize: 13, fontWeight: 600, color: "#111827" },
+    cardDetailMeta: { fontSize: 12, color: "#6b7280", marginTop: 2, lineHeight: 1.4 },
+    earnedTag: {
+        fontSize: 11, fontWeight: 700, color: "#374151", background: "#f3f4f6",
+        borderRadius: 6, padding: "2px 8px", flexShrink: 0,
+    },
     phaseSection: {
         marginBottom: 20, background: "#fff", border: "1px solid #e5e7eb",
         borderRadius: 10, overflow: "hidden",
