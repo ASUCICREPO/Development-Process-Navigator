@@ -114,12 +114,15 @@ def score_rounds(snapshot: dict, placements: dict) -> dict:
 
 
 def all_cards_placed(snapshot: dict, placements: dict) -> tuple[bool, dict]:
-    """Check every card in every playable round has at least one target.
+    """Check every card in every REQUIRED round has at least one target.
 
-    Returns (complete, {roundId: [missing cardIds]}).
+    Optional rounds (rnd["optional"] is True) never block submission — a student
+    may skip them entirely. Returns (complete, {roundId: [missing cardIds]}).
     """
     missing: dict[str, list[str]] = {}
     for rnd in playable_rounds(snapshot):
+        if rnd.get("optional"):
+            continue  # optional rounds are never required
         rp = placements.get(rnd["roundId"], {})
         gaps = [c["cardId"] for c in rnd["cards"] if not rp.get(c["cardId"])]
         if gaps:

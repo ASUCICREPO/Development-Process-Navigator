@@ -519,7 +519,7 @@ const BudgetScheduleStep: React.FC<{
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  wrapper: { display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)", background: "#f9fafb" },
+  wrapper: { display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)", paddingBottom: 72, background: "#f9fafb" },
   header: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     background: "#1a1a1a", color: "#fff", padding: "10px 24px",
@@ -604,7 +604,9 @@ const styles: Record<string, React.CSSProperties> = {
   resultsActions: { display: "flex", gap: 12, justifyContent: "center", marginTop: 24 },
   footer: {
     display: "flex", gap: 12, justifyContent: "flex-end", alignItems: "center",
-    padding: "14px 24px", background: "#fff", borderTop: "1px solid #e5e7eb", position: "sticky" as const, bottom: 0,
+    padding: "14px 24px", background: "#fff", borderTop: "1px solid #e5e7eb",
+    position: "sticky" as const, bottom: 0, zIndex: 20, marginTop: "auto",
+    boxShadow: "0 -2px 8px rgba(0,0,0,0.06)",
   },
   ghostBtn: {
     background: "transparent", border: "1px solid #d1d5db", color: "#374151",

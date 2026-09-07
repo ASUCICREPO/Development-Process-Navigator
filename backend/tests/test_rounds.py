@@ -58,10 +58,29 @@ def test_five_scenarios_exist():
     assert [s["scenarioId"] for s in scs] == ["A", "B", "C", "D", "E"]
 
 
-def test_scenarios_have_five_rounds_and_validate():
+def test_scenarios_have_four_rounds_and_validate():
     for snap in all_scenarios():
-        assert len(snap["rounds"]) == 5
+        # 4 rounds: place activities, professionals, tasks, decisions (last optional)
+        assert len(snap["rounds"]) == 4
+        assert snap["rounds"][-1].get("optional") is True
         validate_configuration(snap)
+
+
+def test_optional_round_does_not_block_submission():
+    from src.exercise import rounds as rmod
+    snap = build_scenario("A")
+    placed = {}
+    for r in snap["rounds"]:
+        if r.get("optional") or not r["cards"]:
+            continue
+        best = {}
+        for m in r["mappings"]:
+            cid, tid, w = m["cardId"], m["targetId"], m["weight"]
+            if cid not in best or w > best[cid][1]:
+                best[cid] = (tid, w)
+        placed[r["roundId"]] = {cid: [t] for cid, (t, w) in best.items()}
+    complete, missing = rmod.all_cards_placed(snap, placed)
+    assert complete and missing == {}
 
 
 def test_scenario_a_drops_vertical_activities():
@@ -84,7 +103,7 @@ def test_perfect_placement_scores_100():
     result = rounds.score_rounds(snap, _perfect_placements(snap))
     assert result["scorePercent"] == 100
     assert result["weakestMatch"] is None
-    assert len(result["roundResults"]) == 5
+    assert len(result["roundResults"]) == 4
 
 
 def test_empty_placement_scores_zero_with_weakest():

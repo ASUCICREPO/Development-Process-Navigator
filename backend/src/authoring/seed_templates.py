@@ -160,31 +160,29 @@ def build_scenario(scenario_id: str) -> dict:
     task_cards = _keep(task_cards, task_mappings)
     decision_cards = _keep(decision_cards, decision_mappings)
 
+    # Round 1 is "place the major activities onto the process stages". (A separate
+    # stage-ordering round was dropped because matching a stage card into the
+    # identically-named column gave away the answer and taught nothing.)
     rounds = [
-        {"roundId": "r1", "order": 1, "kind": "SEQUENCE_PHASES", "cardType": "PROCESS",
-         "title": "Round 1 — Sequence the Process",
-         "instructions": "Arrange the broad process stages in the order that best fits this scenario.",
-         "targetKind": "STAGE", "targets": stage_targets,
-         "cards": process_cards, "mappings": process_mappings},
-        {"roundId": "r2", "order": 2, "kind": "SEQUENCE_PHASES", "cardType": "MAJOR_ACTIVITY",
-         "title": "Round 2 — Place the Major Activities",
+        {"roundId": "r1", "order": 1, "kind": "SEQUENCE_PHASES", "cardType": "MAJOR_ACTIVITY",
+         "title": "Round 1 — Place the Major Activities",
          "instructions": "Place each major activity onto the process stage where it primarily belongs.",
          "targetKind": "STAGE", "targets": stage_targets,
          "cards": [{"cardId": a["activityId"], "cardType": "MAJOR_ACTIVITY",
                     "title": a["title"], "description": a["description"]} for a in activities],
          "mappings": activity_stage_mappings},
-        {"roundId": "r3", "order": 3, "kind": "MATCH_TO_ACTIVITY", "cardType": "PROFESSIONAL",
-         "title": "Round 3 — Match the Professionals",
+        {"roundId": "r2", "order": 2, "kind": "MATCH_TO_ACTIVITY", "cardType": "PROFESSIONAL",
+         "title": "Round 2 — Match the Professionals",
          "instructions": "Match each professional to the major activity/activities they contribute to.",
          "targetKind": "ACTIVITY", "targets": activity_targets,
          "cards": professional_cards, "mappings": professional_mappings},
-        {"roundId": "r4", "order": 4, "kind": "MATCH_TO_ACTIVITY", "cardType": "TASK_DELIVERABLE",
-         "title": "Round 4 — Match Tasks & Deliverables",
+        {"roundId": "r3", "order": 3, "kind": "MATCH_TO_ACTIVITY", "cardType": "TASK_DELIVERABLE",
+         "title": "Round 3 — Match Tasks & Deliverables",
          "instructions": "Match each task/deliverable to the activity it belongs to.",
          "targetKind": "ACTIVITY", "targets": activity_targets,
          "cards": task_cards, "mappings": task_mappings},
-        {"roundId": "r5", "order": 5, "kind": "MATCH_TO_ACTIVITY", "cardType": "DECISION",
-         "title": "Round 5 — Developer Decisions (optional)",
+        {"roundId": "r4", "order": 4, "kind": "MATCH_TO_ACTIVITY", "cardType": "DECISION",
+         "title": "Round 4 — Developer Decisions (optional)",
          "instructions": "Match each developer go/no-go decision to the activity it follows.",
          "targetKind": "ACTIVITY", "targets": activity_targets, "optional": True,
          "cards": decision_cards, "mappings": decision_mappings},

@@ -458,17 +458,25 @@ export default function HistoryDetailPage() {
                     </div>
                 )}
 
-                {/* Action buttons */}
+                {/* Action buttons. A student gets at most two attempts (submit + one
+                    resubmit); only offer re-entry when a resubmission remains. */}
                 <div style={styles.actionRow}>
-                    <button style={styles.tryAgainBtn}
-                        onClick={() => window.location.href = `/student/exercise?id=${detail.exerciseId}`}>
-                        Try This Exercise Again
-                    </button>
+                    {detail.attemptNumber < 2 && (
+                        <button style={styles.tryAgainBtn}
+                            onClick={() => window.location.href = `/student/exercise?id=${detail.exerciseId}`}>
+                            Revise &amp; Resubmit
+                        </button>
+                    )}
                     <button style={styles.backBtn}
                         onClick={() => window.location.href = "/student/history/"}>
                         Back to History
                     </button>
                 </div>
+                {detail.attemptNumber >= 2 && (
+                    <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -28, marginBottom: 40 }}>
+                        You have used both attempts for this exercise. This score is final.
+                    </p>
+                )}
             </main>
         </div>
     );
