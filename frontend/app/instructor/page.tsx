@@ -227,7 +227,7 @@ export default function InstructorDashboard() {
               </h2>
               <button
                 style={styles.newExerciseBtn}
-                onClick={() => window.location.href = "/instructor/exercises/new"}
+                onClick={() => window.location.href = "/instructor/exercises"}
               >
                 + New Exercise
               </button>
