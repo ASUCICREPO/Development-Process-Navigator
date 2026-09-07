@@ -1,8 +1,8 @@
 # Development Process Navigator
 
-> An educational web application for ASU W.P. Carey's MRED program — instructors author real-estate development phase exercises, students complete drag-and-drop sorting with weighted scoring, per-card feedback, and a one-time correct-and-resubmit flow.
+> An educational web application for ASU W.P. Carey's MRED program — instructors pick one of five development scenarios, students work through a five-round card sort (process stages, major activities, professionals, tasks/deliverables, and developer decisions) plus a budget/schedule step, with weighted scoring, per-round feedback, and a one-time correct-and-resubmit flow.
 
-**Live App:** <YOUR_AMPLIFY_URL>  
+**Live App:** https://main.dpg1ppd4e998.amplifyapp.com  
 
 ---
 
