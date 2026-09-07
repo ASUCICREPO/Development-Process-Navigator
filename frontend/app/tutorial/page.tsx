@@ -30,6 +30,18 @@ const instructorGuides: GuideItem[] = [
             "Assign the same scenario to everyone for a comparison discussion, or different scenarios to explore how the process changes with product and strategy.",
             "Each scenario runs the full five-round card sort with a scenario-specific reference matrix.",
             "Click \"Create & Publish\" and share the Exercise ID with your students.",
+            "Want to tweak the answer key? Use the \"Customize a Scenario\" tab to adjust alignment weights or remove cards before publishing.",
+        ],
+    },
+    {
+        title: "Customizing a Scenario",
+        description: "Adjust the reference matrix before publishing.",
+        steps: [
+            "Open the \"Customize a Scenario\" tab and load one of the five scenarios.",
+            "For each round, edit the alignment weight (0–100) for placing a card on a target: 100 = primary/correct, lower = partial credit, 0 = not credited.",
+            "Remove any card you don't want students to sort in a given round.",
+            "Every card must keep at least one weighted target, or publishing will be blocked.",
+            "Click \"Save & Publish Exercise\" and share the Exercise ID. Your edits create a new exercise and never change the original scenario.",
         ],
     },
     {

@@ -377,13 +377,35 @@ def create_configuration(principal: Principal, body: dict) -> dict:
     return {"configId": config_id, "snapshot": snap}
 
 
+def get_configuration(principal: Principal, config_id: str) -> dict:
+    """Return a configuration's full snapshot for the authoring/customizer UI."""
+    _require_role(principal, Role.INSTRUCTOR)
+    cfg = _load_config(principal, config_id)
+    return {"configId": config_id, "name": cfg.get("name", ""),
+            "status": cfg.get("status", "Draft"), "snapshot": json.loads(cfg["snapshot"])}
+
+
+# Snapshot keys the editor is allowed to merge (legacy + v2 multi-round).
+_EDITABLE_SNAPSHOT_KEYS = (
+    "activities", "mappings", "prompts", "phases",          # legacy + shared
+    "rounds", "stages", "costCategories", "scenarioId",     # v2 multi-round
+    "teachingFocus", "processCards", "professionalCards",
+    "taskCards", "decisionCards", "version",
+)
+
+
 def update_configuration(principal: Principal, config_id: str, body: dict) -> dict:
     _require_role(principal, Role.INSTRUCTOR)
     cfg = _load_config(principal, config_id)
     snap = json.loads(cfg["snapshot"])
-    for key in ("activities", "mappings", "prompts"):
-        if key in body:
-            snap[key] = body[key]
+    # Full-snapshot replace (customizer sends the whole edited snapshot)...
+    if isinstance(body.get("snapshot"), dict):
+        snap = body["snapshot"]
+    else:
+        # ...or a partial merge of individual editable keys (legacy path).
+        for key in _EDITABLE_SNAPSHOT_KEYS:
+            if key in body:
+                snap[key] = body[key]
     _t("Configurations").update_item(
         Key={"configId": config_id},
         UpdateExpression="SET #snap = :s",
@@ -1271,6 +1293,8 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 200, get_instructor_stats(principal)
     if method == "POST" and seg == ["configurations"]:
         return 201, create_configuration(principal, body)
+    if method == "GET" and len(seg) == 2 and seg[0] == "configurations":
+        return 200, get_configuration(principal, seg[1])
     if method == "PUT" and len(seg) == 2 and seg[0] == "configurations":
         return 200, update_configuration(principal, seg[1], body)
     if method == "POST" and len(seg) == 3 and seg[0] == "configurations" and seg[2] == "apply":

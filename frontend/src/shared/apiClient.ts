@@ -55,10 +55,15 @@ export class ApiClient {
   // Authoring
   listTemplates = () => this.request("GET", `/templates`);
   listExercises = () => this.request("GET", `/exercises`);
-  createConfiguration = (name: string) =>
-    this.request("POST", `/configurations`, { name });
+  createConfiguration = (name: string, templateId?: string) =>
+    this.request("POST", `/configurations`, templateId ? { name, templateId } : { name });
+  getConfiguration = (configId: string) =>
+    this.request("GET", `/configurations/${configId}`);
   updateConfiguration = (configId: string, payload: unknown) =>
     this.request("PUT", `/configurations/${configId}`, payload);
+  // v2: replace the full snapshot (used by the scenario customizer)
+  updateConfigurationSnapshot = (configId: string, snapshot: unknown) =>
+    this.request("PUT", `/configurations/${configId}`, { snapshot });
   applyConfiguration = (configId: string) =>
     this.request("POST", `/configurations/${configId}/apply`);
 

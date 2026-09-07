@@ -145,3 +145,49 @@ export interface FeedbackViewV2 {
 export function isV2(ex: { version?: number }): ex is ExerciseViewV2 {
   return ex?.version === 2;
 }
+
+// ---- Authoring snapshot (instructor customizer) ---------------------------
+
+export interface SnapshotRoundMapping {
+  cardId: string;
+  targetId: string;
+  weight: number;
+}
+
+export interface SnapshotRound {
+  roundId: string;
+  order: number;
+  kind: RoundKind;
+  cardType: CardType;
+  title: string;
+  instructions: string;
+  optional?: boolean;
+  targetKind: TargetKind;
+  targets: RoundTarget[];
+  cards: RoundCard[];
+  mappings: SnapshotRoundMapping[];
+}
+
+// The full configuration snapshot (v2). Only the fields the customizer touches
+// are typed explicitly; the rest are preserved as-is on round-trip.
+export interface ConfigSnapshot {
+  name?: string;
+  scenarioId?: string;
+  teachingFocus?: string;
+  version?: number;
+  phases?: string[];
+  stages?: Stage[];
+  activities?: Activity[];
+  rounds?: SnapshotRound[];
+  costCategories?: string[];
+  mappings?: { activityId: string; phase: string; weight: number }[];
+  prompts?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface ConfigurationView {
+  configId: string;
+  name: string;
+  status: string;
+  snapshot: ConfigSnapshot;
+}

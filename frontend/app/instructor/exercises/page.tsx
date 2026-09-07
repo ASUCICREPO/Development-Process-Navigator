@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE, getToken } from "../../../src/shared/session";
 import { InstructorSidebar } from "../../../src/shared/InstructorSidebar";
-import { CsvConfigEditor } from "../../../src/instructor/CsvConfigEditor";
+import { ScenarioCustomizer } from "../../../src/instructor/ScenarioCustomizer";
 import { useRoleGuard } from "../../../src/shared/useRoleGuard";
 
 interface Template { templateId: string; source: string; name: string; }
@@ -78,7 +78,7 @@ export default function ExercisesPage() {
                         style={tab === "configure" ? styles.tabActive : styles.tabInactive}
                         onClick={() => setTab("configure")}
                     >
-                        Configure Exercise
+                        Customize a Scenario
                     </button>
                 </div>
 
@@ -127,7 +127,7 @@ export default function ExercisesPage() {
                     </div>
                 )}
 
-                {tab === "configure" && <CsvConfigEditor />}
+                {tab === "configure" && <ScenarioCustomizer />}
             </main>
         </div>
     );
