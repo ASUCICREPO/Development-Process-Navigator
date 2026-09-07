@@ -147,6 +147,19 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
   // ---- render -------------------------------------------------------------
   const totalSteps = rounds.length + 1; // rounds + budget step
 
+  // After submit, show a dedicated results screen instead of the board.
+  if (feedback) {
+    return (
+      <ResultsScreen
+        feedback={feedback}
+        exercise={exercise}
+        activityLabel={activityLabel}
+        canResubmit={!locked && attemptCount < 2}
+        onTryAgain={() => setFeedback(null)}
+      />
+    );
+  }
+
   return (
     <div style={styles.wrapper}>
       {/* Header + stepper */}
@@ -209,30 +222,6 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
           setBudget={setBudget}
           locked={locked}
         />
-      )}
-
-      {/* Feedback */}
-      {feedback && (
-        <div style={styles.feedbackPanel} data-testid="feedback-panel">
-          <p style={{ fontSize: 22, fontWeight: 800, margin: "0 0 4px" }} data-testid="score">
-            Overall Score: {feedback.scorePercent}%
-          </p>
-          <div style={styles.roundScoreRow}>
-            {feedback.roundResults.map((rr) => (
-              <div key={rr.roundId} style={styles.roundScoreChip}>
-                <span style={{ fontWeight: 700 }}>{CARD_TYPE_LABEL[rr.cardType]}</span>
-                <span>{rr.scorePercent}%</span>
-              </div>
-            ))}
-          </div>
-          {feedback.weakestMatch && (
-            <p style={{ color: "#6b7280", fontSize: 14, marginTop: 10 }}>
-              Reflection: your weakest match was{" "}
-              <strong>{activityLabel[feedback.weakestMatch.target] || feedback.weakestMatch.target}</strong>.
-              Consider why that placement matters and whether the sequence changes for this scenario.
-            </p>
-          )}
-        </div>
       )}
 
       {/* Footer nav */}
@@ -377,6 +366,78 @@ const RoundStage: React.FC<{
 };
 
 // ===========================================================================
+// Results screen (shown after submit)
+// ===========================================================================
+const ResultsScreen: React.FC<{
+  feedback: FeedbackViewV2;
+  exercise: ExerciseViewV2;
+  activityLabel: Record<string, string>;
+  canResubmit: boolean;
+  onTryAgain: () => void;
+}> = ({ feedback, exercise, activityLabel, canResubmit, onTryAgain }) => {
+  const score = feedback.scorePercent;
+  const scoreColor = score >= 80 ? "#2e7d32" : score >= 50 ? "#e65100" : "#8C1D40";
+  const weakLabel = feedback.weakestMatch
+    ? (activityLabel[feedback.weakestMatch.target] || feedback.weakestMatch.target)
+    : null;
+
+  return (
+    <div style={styles.resultsPage}>
+      <div style={styles.resultsCard}>
+        <span style={styles.resultsBadge}>Results</span>
+        <h1 style={styles.resultsTitle}>{exercise.name || "Exercise complete"}</h1>
+
+        {/* Big score ring */}
+        <div style={{ ...styles.scoreRing, borderColor: scoreColor, color: scoreColor }}>
+          <span style={{ fontSize: 44, fontWeight: 800, lineHeight: 1 }}>{score}%</span>
+          <span style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>Overall Score</span>
+        </div>
+
+        {/* Per-round breakdown */}
+        <h3 style={styles.resultsSub}>Round breakdown</h3>
+        <div style={styles.resultsRounds}>
+          {feedback.roundResults.map((rr) => (
+            <div key={rr.roundId} style={styles.resultRow}>
+              <span style={{ ...styles.roundDot, background: CARD_TYPE_COLOR[rr.cardType] }} />
+              <span style={styles.resultRoundName}>{CARD_TYPE_LABEL[rr.cardType]}</span>
+              <div style={styles.resultBarTrack}>
+                <div style={{ ...styles.resultBarFill, width: `${rr.scorePercent}%`, background: CARD_TYPE_COLOR[rr.cardType] }} />
+              </div>
+              <span style={styles.resultPct}>{rr.scorePercent}%</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Reflection */}
+        {weakLabel && (
+          <div style={styles.reflectionBox}>
+            <strong style={{ color: "#8C1D40" }}>Reflection</strong>
+            <p style={{ margin: "6px 0 0", fontSize: 14, color: "#374151", lineHeight: 1.5 }}>
+              Your weakest match was <strong>{weakLabel}</strong>. Consider why that placement
+              matters and whether the sequence changes for this scenario.
+            </p>
+          </div>
+        )}
+
+        <div style={styles.resultsActions}>
+          {canResubmit && (
+            <button style={styles.ghostBtn} onClick={onTryAgain}>Revise &amp; Resubmit</button>
+          )}
+          <a href="/student/" style={{ ...styles.primaryBtn, textDecoration: "none", display: "inline-block" }}>
+            Back to Dashboard
+          </a>
+        </div>
+        {canResubmit && (
+          <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 10 }}>
+            You have one resubmission. Your most recent submission is final.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ===========================================================================
 // Budget & Schedule extension (manual §12)
 // ===========================================================================
 const BudgetScheduleStep: React.FC<{
@@ -385,7 +446,7 @@ const BudgetScheduleStep: React.FC<{
   setBudget: (b: BudgetSchedule) => void;
   locked: boolean;
 }> = ({ exercise, budget, setBudget, locked }) => {
-  function update(activityId: string, field: keyof BudgetSchedule[string], value: any) {
+  function update(activityId: string, field: "costCategory" | "durationDays", value: string) {
     setBudget({
       ...budget,
       [activityId]: {
@@ -400,11 +461,11 @@ const BudgetScheduleStep: React.FC<{
   return (
     <div style={{ padding: "0 8px" }}>
       <div style={styles.roundHeader}>
-        <span style={{ ...styles.roundBadge, background: "#6d4c00" }}>Budget & Schedule</span>
+        <span style={{ ...styles.roundBadge, background: "#6d4c00" }}>Budget &amp; Schedule</span>
         <h2 style={styles.roundTitle}>Turn your process into a development plan</h2>
         <p style={styles.roundInstr}>
-          For each major activity, assign a cost category, a rough duration, and any predecessor
-          activities. This connects the process to the development budget and schedule.
+          For each major activity, assign a cost category and a rough duration. This connects the
+          process you sequenced to a first-pass development budget and schedule.
         </p>
       </div>
 
@@ -415,7 +476,6 @@ const BudgetScheduleStep: React.FC<{
               <th style={styles.th}>Major Activity</th>
               <th style={styles.th}>Cost Category</th>
               <th style={styles.th}>Duration (days)</th>
-              <th style={styles.th}>Predecessors</th>
             </tr>
           </thead>
           <tbody>
@@ -423,15 +483,15 @@ const BudgetScheduleStep: React.FC<{
               const row = budget[a.activityId] ?? { costCategory: "", durationDays: "", predecessors: [] };
               return (
                 <tr key={a.activityId}>
-                  <td style={styles.td}>{a.title}</td>
+                  <td style={{ ...styles.td, fontWeight: 600 }}>{a.title}</td>
                   <td style={styles.td}>
                     <select
                       disabled={locked}
                       value={row.costCategory}
                       onChange={(e) => update(a.activityId, "costCategory", e.target.value)}
-                      style={styles.cell}
+                      style={{ ...styles.cell, minWidth: 180 }}
                     >
-                      <option value="">—</option>
+                      <option value="">Select…</option>
                       {exercise.costCategories.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
@@ -442,31 +502,11 @@ const BudgetScheduleStep: React.FC<{
                       disabled={locked}
                       type="number"
                       min={0}
+                      placeholder="e.g. 30"
                       value={row.durationDays}
                       onChange={(e) => update(a.activityId, "durationDays", e.target.value)}
-                      style={{ ...styles.cell, width: 90 }}
+                      style={{ ...styles.cell, width: 110 }}
                     />
-                  </td>
-                  <td style={styles.td}>
-                    <select
-                      disabled={locked}
-                      multiple
-                      value={row.predecessors}
-                      onChange={(e) =>
-                        update(
-                          a.activityId,
-                          "predecessors",
-                          Array.from(e.target.selectedOptions).map((o) => o.value)
-                        )
-                      }
-                      style={{ ...styles.cell, minHeight: 54 }}
-                    >
-                      {exercise.activities
-                        .filter((o) => o.activityId !== a.activityId)
-                        .map((o) => (
-                          <option key={o.activityId} value={o.activityId}>{o.title}</option>
-                        ))}
-                    </select>
                   </td>
                 </tr>
               );
@@ -531,12 +571,37 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600, color: "#374151", cursor: "grab",
   },
   removeBtn: { background: "none", border: "none", color: "#9ca3af", fontSize: 16, cursor: "pointer", fontWeight: 700 },
-  feedbackPanel: { background: "#fff", borderTop: "1px solid #e5e7eb", padding: "20px 24px", margin: "0 8px" },
-  roundScoreRow: { display: "flex", gap: 8, flexWrap: "wrap" as const, marginTop: 8 },
-  roundScoreChip: {
-    display: "flex", gap: 8, alignItems: "center", background: "#f3f4f6",
-    borderRadius: 8, padding: "6px 12px", fontSize: 12,
+  // Results screen
+  resultsPage: {
+    minHeight: "calc(100vh - 56px)", background: "#f9fafb", display: "flex",
+    justifyContent: "center", alignItems: "flex-start", padding: "40px 24px",
   },
+  resultsCard: {
+    background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: "36px 40px",
+    maxWidth: 640, width: "100%", textAlign: "center" as const, boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
+  },
+  resultsBadge: {
+    display: "inline-block", background: "#8C1D40", color: "#fff", fontSize: 11, fontWeight: 700,
+    padding: "4px 12px", borderRadius: 12, textTransform: "uppercase" as const, letterSpacing: 0.5,
+  },
+  resultsTitle: { fontSize: 22, fontWeight: 800, color: "#111827", margin: "12px 0 20px" },
+  scoreRing: {
+    width: 140, height: 140, borderRadius: "50%", border: "8px solid", margin: "0 auto 8px",
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+  },
+  resultsSub: { fontSize: 14, fontWeight: 700, color: "#111827", textAlign: "left" as const, margin: "24px 0 10px" },
+  resultsRounds: { display: "flex", flexDirection: "column", gap: 10 },
+  resultRow: { display: "flex", alignItems: "center", gap: 10 },
+  roundDot: { width: 10, height: 10, borderRadius: "50%", flexShrink: 0 },
+  resultRoundName: { fontSize: 13, fontWeight: 600, color: "#374151", width: 140, textAlign: "left" as const },
+  resultBarTrack: { flex: 1, height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" },
+  resultBarFill: { height: "100%", borderRadius: 4 },
+  resultPct: { fontSize: 13, fontWeight: 700, color: "#111827", width: 44, textAlign: "right" as const },
+  reflectionBox: {
+    background: "#fdf6f8", border: "1px solid #f3d6de", borderRadius: 10, padding: 16,
+    textAlign: "left" as const, marginTop: 20,
+  },
+  resultsActions: { display: "flex", gap: 12, justifyContent: "center", marginTop: 24 },
   footer: {
     display: "flex", gap: 12, justifyContent: "flex-end", alignItems: "center",
     padding: "14px 24px", background: "#fff", borderTop: "1px solid #e5e7eb", position: "sticky" as const, bottom: 0,
