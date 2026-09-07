@@ -173,6 +173,26 @@ export default function TutorialPage() {
                 )}
             </div>
 
+            {/* Instructor Manual download — instructors only */}
+            {isInstructor && (
+                <a
+                    href="/Instructor-Manual.docx"
+                    download
+                    style={styles.manualCard}
+                >
+                    <span style={styles.manualIcon}>📘</span>
+                    <div style={{ flex: 1 }}>
+                        <div style={styles.manualTitle}>Instructor Manual</div>
+                        <div style={styles.manualDesc}>
+                            The complete facilitation guide — teaching philosophy, learning objectives,
+                            the eight process stages and fifteen major activities, professional roles,
+                            the five scenarios, in-class facilitation, scoring rubric, and the reference matrix.
+                        </div>
+                    </div>
+                    <span style={styles.manualBtn}>Download (.docx)</span>
+                </a>
+            )}
+
             {/* Guides Accordion */}
             <div style={styles.guidesContainer}>
                 {guides.map((guide, index) => (
@@ -246,6 +266,45 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: 15,
         color: "#6b7280",
         marginTop: 8,
+    },
+    manualCard: {
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        background: "#fff",
+        border: "1px solid #8C1D40",
+        borderLeft: "5px solid #8C1D40",
+        borderRadius: 10,
+        padding: "18px 20px",
+        marginBottom: 24,
+        textDecoration: "none",
+        color: "inherit",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+    },
+    manualIcon: {
+        fontSize: 28,
+        lineHeight: 1,
+    },
+    manualTitle: {
+        fontSize: 16,
+        fontWeight: 700,
+        color: "#8C1D40",
+    },
+    manualDesc: {
+        fontSize: 13,
+        color: "#6b7280",
+        marginTop: 4,
+        lineHeight: 1.5,
+    },
+    manualBtn: {
+        flexShrink: 0,
+        background: "#8C1D40",
+        color: "#fff",
+        borderRadius: 6,
+        padding: "10px 16px",
+        fontSize: 13,
+        fontWeight: 700,
+        whiteSpace: "nowrap" as const,
     },
     tabRow: {
         display: "flex",
