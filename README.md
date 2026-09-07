@@ -27,6 +27,10 @@
 
 ## Architecture
 
+<p align="center">
+  <img src="architecture.drawio.png" alt="Development Process Navigator architecture diagram" width="800" />
+</p>
+
 ```
 ┌─────────────────────────────────────────────┐
 │           AWS Amplify Hosting                │
