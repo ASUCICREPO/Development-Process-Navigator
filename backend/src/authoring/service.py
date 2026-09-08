@@ -45,11 +45,18 @@ def _validate_rounds(rounds: list) -> None:
             raise ValidationError(f"Round '{rnd.get('roundId')}' has no cards.")
         if not rnd.get("targets"):
             raise ValidationError(f"Round '{rnd.get('roundId')}' has no targets.")
-        weighted = {m["cardId"] for m in mappings if m.get("weight", 0) > 0}
-        missing = [c["cardId"] for c in cards if c["cardId"] not in weighted]
-        if missing:
-            raise ValidationError(
-                f"Round '{rnd.get('roundId')}': every card needs a mapping > 0. Missing: {missing}")
+        if rnd.get("kind") == "SEQUENCE_ORDER":
+            # Ordering rounds are scored by position, not per-card mappings.
+            missing = [c["cardId"] for c in cards if not c.get("correctPosition")]
+            if missing:
+                raise ValidationError(
+                    f"Round '{rnd.get('roundId')}': every card needs a correctPosition. Missing: {missing}")
+        else:
+            weighted = {m["cardId"] for m in mappings if m.get("weight", 0) > 0}
+            missing = [c["cardId"] for c in cards if c["cardId"] not in weighted]
+            if missing:
+                raise ValidationError(
+                    f"Round '{rnd.get('roundId')}': every card needs a mapping > 0. Missing: {missing}")
         playable += 1
     if playable == 0:
         raise ValidationError("Configuration must have at least one playable round.")

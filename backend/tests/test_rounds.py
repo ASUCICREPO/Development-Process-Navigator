@@ -8,10 +8,15 @@ from src.exercise import rounds
 
 
 def _perfect_placements(snap):
-    """For each round, place each card on its single highest-weight target."""
+    """For each round, place each card optimally (correct position or best target)."""
     placements = {}
     for r in snap["rounds"]:
         if not r["cards"]:
+            continue
+        if r.get("kind") == "SEQUENCE_ORDER":
+            placements[r["roundId"]] = {
+                c["cardId"]: ["pos-%d" % c["correctPosition"]] for c in r["cards"]
+            }
             continue
         best = {}
         for m in r["mappings"]:
@@ -58,12 +63,31 @@ def test_five_scenarios_exist():
     assert [s["scenarioId"] for s in scs] == ["A", "B", "C", "D", "E"]
 
 
-def test_scenarios_have_four_rounds_and_validate():
+def test_scenarios_have_five_rounds_and_validate():
     for snap in all_scenarios():
-        # 4 rounds: place activities, professionals, tasks, decisions (last optional)
-        assert len(snap["rounds"]) == 4
+        # 5 rounds: sequence stages, place activities, professionals, tasks, decisions(optional)
+        assert len(snap["rounds"]) == 5
+        assert snap["rounds"][0].get("kind") == "SEQUENCE_ORDER"
         assert snap["rounds"][-1].get("optional") is True
         validate_configuration(snap)
+
+
+def test_sequence_round_partial_credit():
+    from src.exercise import rounds as rmod
+    snap = build_scenario("B")
+    seq = snap["rounds"][0]
+    assert seq["kind"] == "SEQUENCE_ORDER"
+    # perfect order
+    perfect = {seq["roundId"]: {c["cardId"]: ["pos-%d" % c["correctPosition"]] for c in seq["cards"]}}
+    r = rmod._score_sequence_round(seq, perfect[seq["roundId"]])
+    assert r["scorePercent"] == 100
+    # swap first two -> high partial, not perfect, not zero
+    cards = seq["cards"]
+    swapped = {c["cardId"]: ["pos-%d" % c["correctPosition"]] for c in cards}
+    swapped[cards[0]["cardId"]] = ["pos-%d" % cards[1]["correctPosition"]]
+    swapped[cards[1]["cardId"]] = ["pos-%d" % cards[0]["correctPosition"]]
+    r2 = rmod._score_sequence_round(seq, swapped)
+    assert 0 < r2["scorePercent"] < 100
 
 
 def test_optional_round_does_not_block_submission():
@@ -72,6 +96,9 @@ def test_optional_round_does_not_block_submission():
     placed = {}
     for r in snap["rounds"]:
         if r.get("optional") or not r["cards"]:
+            continue
+        if r.get("kind") == "SEQUENCE_ORDER":
+            placed[r["roundId"]] = {c["cardId"]: ["pos-%d" % c["correctPosition"]] for c in r["cards"]}
             continue
         best = {}
         for m in r["mappings"]:
@@ -103,7 +130,7 @@ def test_perfect_placement_scores_100():
     result = rounds.score_rounds(snap, _perfect_placements(snap))
     assert result["scorePercent"] == 100
     assert result["weakestMatch"] is None
-    assert len(result["roundResults"]) == 4
+    assert len(result["roundResults"]) == 5
 
 
 def test_empty_placement_scores_zero_with_weakest():

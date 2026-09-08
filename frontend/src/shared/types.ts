@@ -51,8 +51,8 @@ export type CardType =
   | "TASK_DELIVERABLE"
   | "DECISION";
 
-export type RoundKind = "SEQUENCE_PHASES" | "MATCH_TO_ACTIVITY";
-export type TargetKind = "STAGE" | "ACTIVITY";
+export type RoundKind = "SEQUENCE_ORDER" | "SEQUENCE_PHASES" | "MATCH_TO_ACTIVITY";
+export type TargetKind = "POSITION" | "STAGE" | "ACTIVITY";
 
 export interface Stage {
   stageId: string;

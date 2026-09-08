@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ApiClient } from "../shared/apiClient";
 import {
   BudgetSchedule,
@@ -92,6 +92,37 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
     if (fromTarget) unplace(roundId, cardId, fromTarget);
   }
 
+  // ---- sequence-round helpers (kind === SEQUENCE_ORDER) -------------------
+  // The student's ordering is stored as { cardId: ["pos-<1-based index>"] }.
+  function sequenceOrder(rnd: RoundView): string[] {
+    const rp = placements[rnd.roundId] ?? {};
+    const positioned = rnd.cards
+      .map((c) => {
+        const t = (rp[c.cardId] ?? [])[0];
+        const pos = t ? parseInt(String(t).replace("pos-", ""), 10) : NaN;
+        return { cardId: c.cardId, pos: isNaN(pos) ? Infinity : pos };
+      })
+      .sort((a, b) => a.pos - b.pos);
+    return positioned.map((p) => p.cardId);
+  }
+
+  function writeSequence(roundId: string, orderedIds: string[]) {
+    if (locked) return;
+    const map: Record<string, string[]> = {};
+    orderedIds.forEach((cid, i) => (map[cid] = [`pos-${i + 1}`]));
+    setPlacements((prev) => ({ ...prev, [roundId]: map }));
+  }
+
+  function moveInSequence(rnd: RoundView, fromCardId: string, toCardId: string) {
+    if (locked || fromCardId === toCardId) return;
+    const order = sequenceOrder(rnd);
+    const from = order.indexOf(fromCardId);
+    const to = order.indexOf(toCardId);
+    if (from < 0 || to < 0) return;
+    order.splice(to, 0, order.splice(from, 1)[0]);
+    writeSequence(rnd.roundId, order);
+  }
+
   // ---- round completeness -------------------------------------------------
   const roundComplete = useMemo(() => {
     if (!round) return true;
@@ -103,6 +134,20 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
     exercise.activities.forEach((a) => (m[a.activityId] = a.title));
     return m;
   }, [exercise.activities]);
+
+  // Seed a default order for a SEQUENCE_ORDER round the first time it's shown,
+  // so every card has a position (the round is scoreable even if untouched).
+  useEffect(() => {
+    if (!round || round.kind !== "SEQUENCE_ORDER" || locked) return;
+    const existing = placements[round.roundId] ?? {};
+    const allPositioned = round.cards.every((c) => (existing[c.cardId] ?? []).length > 0);
+    if (!allPositioned) {
+      const map: Record<string, string[]> = {};
+      round.cards.forEach((c, i) => (map[c.cardId] = [`pos-${i + 1}`]));
+      setPlacements((prev) => ({ ...prev, [round.roundId]: map }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round?.roundId]);
 
   // ---- persistence --------------------------------------------------------
   async function saveDraft() {
@@ -199,7 +244,19 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
       {error && <div style={styles.errorBar}>⚠️ {error}</div>}
 
       {/* ROUND view */}
-      {round && (
+      {round && round.kind === "SEQUENCE_ORDER" && (
+        <SequenceStage
+          round={round}
+          order={sequenceOrder(round)}
+          locked={locked}
+          onDragStart={(cardId) => (dragging.current = { cardId, fromTarget: null })}
+          onDropOn={(toCardId) => {
+            if (dragging.current) moveInSequence(round, dragging.current.cardId, toCardId);
+            dragging.current = null;
+          }}
+        />
+      )}
+      {round && round.kind !== "SEQUENCE_ORDER" && (
         <RoundStage
           round={round}
           placements={placements[round.roundId] ?? {}}
@@ -259,6 +316,67 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
           <span style={{ color: "#6b7280", fontSize: 14 }}>Exercise submitted and locked.</span>
         </div>
       )}
+    </div>
+  );
+};
+
+// ===========================================================================
+// Sequence round: drag the cards into the correct 1..N order
+// ===========================================================================
+const SequenceStage: React.FC<{
+  round: RoundView;
+  order: string[];
+  locked: boolean;
+  onDragStart: (cardId: string) => void;
+  onDropOn: (toCardId: string) => void;
+}> = ({ round, order, locked, onDragStart, onDropOn }) => {
+  const color = CARD_TYPE_COLOR[round.cardType] || "#8C1D40";
+  const byId: Record<string, { title: string; description: string }> = {};
+  round.cards.forEach((c) => (byId[c.cardId] = { title: c.title, description: c.description }));
+  const [overId, setOverId] = useState<string | null>(null);
+
+  return (
+    <div>
+      <div style={styles.roundHeader}>
+        <span style={{ ...styles.roundBadge, background: color }}>{CARD_TYPE_LABEL[round.cardType]}</span>
+        <h2 style={styles.roundTitle}>{round.title}</h2>
+        <p style={styles.roundInstr}>{round.instructions}</p>
+      </div>
+
+      <div style={styles.seqWrap}>
+        {order.map((cid, i) => {
+          const card = byId[cid];
+          if (!card) return null;
+          const isOver = overId === cid;
+          return (
+            <div
+              key={cid}
+              draggable={!locked}
+              onDragStart={() => onDragStart(cid)}
+              onDragOver={(e) => { e.preventDefault(); setOverId(cid); }}
+              onDragLeave={() => setOverId((v) => (v === cid ? null : v))}
+              onDrop={() => { setOverId(null); onDropOn(cid); }}
+              style={{
+                ...styles.seqRow,
+                borderColor: isOver ? color : "#e5e7eb",
+                boxShadow: isOver ? `0 0 0 2px ${color}33` : "none",
+                cursor: locked ? "default" : "grab",
+              }}
+              data-testid={`seq-${cid}`}
+            >
+              <span style={{ ...styles.seqNum, background: color }}>{i + 1}</span>
+              <div style={{ flex: 1 }}>
+                <div style={styles.seqTitle}>{card.title}</div>
+                {card.description && <div style={styles.seqDesc}>{card.description}</div>}
+              </div>
+              {!locked && <span style={styles.seqGrip}>⠿</span>}
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 12, color: "#9ca3af", padding: "0 24px 8px" }}>
+        Drag a card onto another to change its position. Positions are scored on how close they are to the correct order.
+      </p>
     </div>
   );
 };
@@ -571,6 +689,19 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600, color: "#374151", cursor: "grab",
   },
   removeBtn: { background: "none", border: "none", color: "#9ca3af", fontSize: 16, cursor: "pointer", fontWeight: 700 },
+  // Sequence (ordering) round
+  seqWrap: { display: "flex", flexDirection: "column", gap: 8, padding: "8px 24px 4px", maxWidth: 720 },
+  seqRow: {
+    display: "flex", alignItems: "center", gap: 14, background: "#fff",
+    border: "2px solid #e5e7eb", borderRadius: 10, padding: "12px 14px",
+  },
+  seqNum: {
+    width: 28, height: 28, borderRadius: "50%", color: "#fff", fontSize: 13, fontWeight: 800,
+    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+  },
+  seqTitle: { fontSize: 14, fontWeight: 700, color: "#111827" },
+  seqDesc: { fontSize: 12, color: "#6b7280", marginTop: 2, lineHeight: 1.4 },
+  seqGrip: { color: "#c1c5cb", fontSize: 18, cursor: "grab" },
   // Results screen
   resultsPage: {
     minHeight: "calc(100vh - 56px)", background: "#f9fafb", display: "flex",

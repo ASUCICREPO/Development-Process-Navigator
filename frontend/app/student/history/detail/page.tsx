@@ -25,6 +25,8 @@ interface RoundCardResult {
     perTarget: { target: string; status: string; weight: number }[];
     earned: number;
     max: number;
+    correctPosition?: number;
+    studentPosition?: number | null;
 }
 
 interface RoundResult {
@@ -348,10 +350,11 @@ export default function HistoryDetailPage() {
                                             <div style={styles.cardDetailList}>
                                                 {cards.map((c) => {
                                                     const status = cardStatus(c);
-                                                    const placed = c.placedTargets.map(labelOf).filter(Boolean);
-                                                    const correct = correctTargetsFor(rr.roundId, c.cardId).map(labelOf).filter(Boolean);
                                                     const isRight = status === "CORRECT";
                                                     const isPartial = status === "PARTIAL";
+                                                    const isSequence = rr.kind === "SEQUENCE_ORDER";
+                                                    const placed = c.placedTargets.map(labelOf).filter(Boolean);
+                                                    const correct = correctTargetsFor(rr.roundId, c.cardId).map(labelOf).filter(Boolean);
                                                     return (
                                                         <div key={c.cardId} style={styles.cardDetailRow}>
                                                             <span style={{
@@ -363,11 +366,22 @@ export default function HistoryDetailPage() {
                                                             <div style={{ flex: 1 }}>
                                                                 <div style={styles.cardDetailTitle}>{cardTitleOf(c.cardId)}</div>
                                                                 <div style={styles.cardDetailMeta}>
-                                                                    {placed.length > 0
-                                                                        ? <>You placed it in: <strong>{placed.join(", ")}</strong></>
-                                                                        : <span style={{ fontStyle: "italic" }}>Not placed</span>}
-                                                                    {!isRight && correct.length > 0 && (
-                                                                        <> · Best match: <strong style={{ color: "#16a34a" }}>{correct.join(", ")}</strong></>
+                                                                    {isSequence ? (
+                                                                        <>
+                                                                            Your position: <strong>{c.studentPosition ?? "—"}</strong>
+                                                                            {!isRight && c.correctPosition != null && (
+                                                                                <> · Correct position: <strong style={{ color: "#16a34a" }}>{c.correctPosition}</strong></>
+                                                                            )}
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            {placed.length > 0
+                                                                                ? <>You placed it in: <strong>{placed.join(", ")}</strong></>
+                                                                                : <span style={{ fontStyle: "italic" }}>Not placed</span>}
+                                                                            {!isRight && correct.length > 0 && (
+                                                                                <> · Best match: <strong style={{ color: "#16a34a" }}>{correct.join(", ")}</strong></>
+                                                                            )}
+                                                                        </>
                                                                     )}
                                                                 </div>
                                                             </div>

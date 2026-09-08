@@ -13,7 +13,7 @@ def test_seed_template_is_multi_round_scenario():
     assert len(snap["stages"]) == 8
     # Scenario A drops vertical development, so fewer than the full 15 activities.
     assert 0 < len(snap["activities"]) < 15
-    assert len(snap["rounds"]) == 4
+    assert len(snap["rounds"]) == 5
     # legacy projection: every active activity has a positive legacy mapping
     weighted = {m["activityId"] for m in snap["mappings"] if m["weight"] > 0}
     assert {a["activityId"] for a in snap["activities"]} == weighted
