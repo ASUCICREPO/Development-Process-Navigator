@@ -55,6 +55,7 @@ interface AttemptDetail {
     cardTitles?: Record<string, string>;
     targetLabels?: Record<string, string>;
     correctTargets?: Record<string, Record<string, string[]>>;
+    budgetSchedule?: Record<string, { costCategory?: string; durationDays?: number | string }>;
 }
 
 const CARD_TYPE_LABEL: Record<string, string> = {
@@ -472,6 +473,35 @@ export default function HistoryDetailPage() {
                     </div>
                 )}
 
+                {/* Budget & Schedule the student submitted (v2 only) */}
+                {isMultiRound && detail.budgetSchedule && Object.keys(detail.budgetSchedule).length > 0 && (
+                    <>
+                        <h2 style={styles.sectionTitle}>Budget &amp; Schedule</h2>
+                        <div style={styles.roundCard}>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                <thead>
+                                    <tr>
+                                        <th style={styles.bsTh}>Major Activity</th>
+                                        <th style={styles.bsTh}>Cost Category</th>
+                                        <th style={styles.bsTh}>Duration (days)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(detail.budgetSchedule)
+                                        .filter(([, v]) => (v.costCategory || v.durationDays))
+                                        .map(([aid, v]) => (
+                                            <tr key={aid}>
+                                                <td style={styles.bsTd}>{cardTitleOf(aid)}</td>
+                                                <td style={styles.bsTd}>{v.costCategory || "—"}</td>
+                                                <td style={styles.bsTd}>{v.durationDays || "—"}</td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+
                 {/* Action buttons. A student gets at most two attempts (submit + one
                     resubmit); only offer re-entry when a resubmission remains. */}
                 <div style={styles.actionRow}>
@@ -529,6 +559,8 @@ const styles: Record<string, React.CSSProperties> = {
     roundPct: { fontSize: 15, fontWeight: 800 },
     roundBarTrack: { height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" },
     roundBarFill: { height: "100%", borderRadius: 4 },
+    bsTh: { textAlign: "left" as const, fontSize: 12, fontWeight: 700, color: "#374151", padding: "8px 10px", borderBottom: "1px solid #e5e7eb" },
+    bsTd: { padding: "8px 10px", borderBottom: "1px solid #f3f4f6", fontSize: 13, color: "#374151" },
     roundToggle: {
         display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none",
         border: "none", padding: 0, marginBottom: 8, cursor: "pointer", textAlign: "left" as const,

@@ -291,14 +291,27 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
             {saving ? "Saving…" : "Save Draft"}
           </button>
           {!onBudgetStep ? (
-            <button
-              style={{ ...styles.primaryBtn, opacity: round?.optional || roundComplete ? 1 : 0.5 }}
-              onClick={nextStep}
-              disabled={!(round?.optional || roundComplete)}
-              data-testid="next-round"
-            >
-              {round?.optional && !roundComplete ? "Skip →" : "Next →"}
-            </button>
+            (() => {
+              const isLastRound = stepIndex === rounds.length - 1;
+              const placedAny = !!round && round.cards.some(
+                (c) => (placements[round.roundId]?.[c.cardId]?.length ?? 0) > 0);
+              const canAdvance = round?.optional || roundComplete;
+              const label = round?.optional && !placedAny
+                ? "Skip to Budget & Schedule →"
+                : isLastRound
+                  ? "Continue to Budget & Schedule →"
+                  : "Next →";
+              return (
+                <button
+                  style={{ ...styles.primaryBtn, opacity: canAdvance ? 1 : 0.5 }}
+                  onClick={nextStep}
+                  disabled={!canAdvance}
+                  data-testid="next-round"
+                >
+                  {label}
+                </button>
+              );
+            })()
           ) : (
             <button
               style={{ ...styles.primaryBtn, background: "#8C1D40", color: "#fff", opacity: submitting ? 0.5 : 1 }}
