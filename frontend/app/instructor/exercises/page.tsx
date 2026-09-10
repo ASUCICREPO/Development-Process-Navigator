@@ -66,6 +66,17 @@ export default function ExercisesPage() {
                 <div style={styles.breadcrumb}>Instructor &gt; Exercises</div>
                 <h1 style={styles.pageTitle}>My Exercises</h1>
 
+                {/* How this works — quick orientation */}
+                <div style={styles.howCard}>
+                    <div style={styles.howTitle}>How to set up an assignment</div>
+                    <ol style={styles.howList}>
+                        <li><strong>Pick a scenario</strong> below (e.g. Multi-Tenant Retail) and click <strong>Create &amp; Publish</strong>. Optionally use <strong>Customize a Scenario</strong> first to adjust the answer key.</li>
+                        <li><strong>Get students into your class</strong> — go to <a href="/instructor/roster" style={styles.howLink}>Student Roster</a> and either invite them by email or share a <strong>Join Code</strong>.</li>
+                        <li><strong>Share the Exercise ID</strong> (shown after you publish) so students can open the assignment.</li>
+                        <li><strong>Review results</strong> anytime under <a href="/instructor/results" style={styles.howLink}>Results &amp; History</a>.</li>
+                    </ol>
+                </div>
+
                 {/* Tabs */}
                 <div style={styles.tabRow}>
                     <button
@@ -86,7 +97,12 @@ export default function ExercisesPage() {
                     <div style={styles.card}>
                         {err && <p style={{ color: "#ef4444", marginBottom: 12 }}>{err}</p>}
 
-                        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Create New Exercise</h3>
+                        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Create New Exercise</h3>
+                        <p style={styles.cardHint}>
+                            Choose a ready-made scenario, give it a name, and publish. Students will complete
+                            it as a multi-round card sort. To edit the answer key first, use the
+                            &ldquo;Customize a Scenario&rdquo; tab.
+                        </p>
 
                         <label style={styles.label}>Scenario / Template</label>
                         <select
@@ -118,9 +134,25 @@ export default function ExercisesPage() {
 
                         {exerciseId && (
                             <div style={styles.successCard}>
-                                <h4 style={{ margin: "0 0 8px", color: "#16a34a" }}>Exercise Created!</h4>
-                                <p style={{ margin: 0, fontSize: 14 }}>
-                                    Share this Exercise ID with students: <code style={styles.code}>{exerciseId}</code>
+                                <h4 style={{ margin: "0 0 8px", color: "#16a34a" }}>✓ Exercise published</h4>
+                                <p style={{ margin: "0 0 8px", fontSize: 14 }}>
+                                    Your assignment is ready. Share this <strong>Exercise ID</strong> with your
+                                    students — they enter it after logging in to open the assignment:
+                                </p>
+                                <div style={styles.idRow}>
+                                    <code style={styles.code}>{exerciseId}</code>
+                                    <button
+                                        style={styles.copyBtn}
+                                        onClick={() => { navigator.clipboard.writeText(exerciseId); }}
+                                    >
+                                        Copy ID
+                                    </button>
+                                </div>
+                                <p style={{ margin: "12px 0 0", fontSize: 13, color: "#374151" }}>
+                                    <strong>Next:</strong> make sure your students are in your class —{" "}
+                                    <a href="/instructor/roster" style={styles.howLink}>add them in Student Roster</a>{" "}
+                                    (email invite or Join Code). Track submissions under{" "}
+                                    <a href="/instructor/results" style={styles.howLink}>Results &amp; History</a>.
                                 </p>
                             </div>
                         )}
@@ -135,7 +167,20 @@ export default function ExercisesPage() {
 
 const styles: Record<string, React.CSSProperties> = {
     breadcrumb: { fontSize: 12, color: "#6b7280", marginBottom: 4 },
-    pageTitle: { fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 20 },
+    pageTitle: { fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 16 },
+    howCard: {
+        background: "#fdf6f8", border: "1px solid #f3d6de", borderLeft: "4px solid #8C1D40",
+        borderRadius: 10, padding: "16px 20px", marginBottom: 24,
+    },
+    howTitle: { fontSize: 14, fontWeight: 700, color: "#8C1D40", marginBottom: 8 },
+    howList: { margin: 0, paddingLeft: 20, fontSize: 14, color: "#374151", lineHeight: 1.7 },
+    howLink: { color: "#8C1D40", fontWeight: 600, textDecoration: "underline" },
+    cardHint: { fontSize: 13, color: "#6b7280", lineHeight: 1.5, marginBottom: 16 },
+    idRow: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const },
+    copyBtn: {
+        background: "#8C1D40", color: "#fff", border: "none", borderRadius: 6,
+        padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+    },
     tabRow: { display: "flex", gap: 0, marginBottom: 24, borderBottom: "2px solid #e5e7eb" },
     tabActive: {
         background: "none", border: "none", borderBottom: "2px solid #8C1D40",
