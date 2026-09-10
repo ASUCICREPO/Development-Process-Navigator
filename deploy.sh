@@ -11,6 +11,10 @@
 #   - AWS CLI v2
 #   - Node.js 18+
 #   - Python 3.12+
+#
+# Disk space is managed automatically: the script clears npm caches and stale
+# build artifacts up front and again before the frontend build, so it runs
+# cleanly within CloudShell's ~1 GB home quota (avoids ENOSPC errors).
 # =============================================================================
 
 set -euo pipefail
@@ -35,6 +39,28 @@ ok()     { echo -e "${GREEN}[  ok  ]${NC} $1"; }
 warn()   { echo -e "${YELLOW}[ warn ]${NC} $1"; }
 fail()   { echo -e "${RED}[ fail ]${NC} $1"; exit 1; }
 
+# Free up disk space (important on AWS CloudShell — ~1 GB home quota).
+# Safe: only removes caches and regenerable build artifacts.
+free_space() {
+  local phase="${1:-}"
+  log "Reclaiming disk space${phase:+ ($phase)}..."
+  ROOT="$(cd "$(dirname "$0")" && pwd)"
+  npm cache clean --force >/dev/null 2>&1 || true
+  rm -rf "$HOME/.npm/_cacache" >/dev/null 2>&1 || true
+  rm -rf "$ROOT/frontend/.next" "$ROOT/frontend/out" >/dev/null 2>&1 || true
+  rm -rf "$ROOT/infrastructure/cdk.out" >/dev/null 2>&1 || true
+  if [ "$phase" = "pre-frontend" ]; then
+    # CDK deps are no longer needed once the stack is deployed.
+    rm -rf "$ROOT/infrastructure/node_modules" >/dev/null 2>&1 || true
+  fi
+  if [ "$phase" = "start" ]; then
+    # Stale deps get reinstalled by this script; clearing them frees space now.
+    rm -rf "$ROOT/frontend/node_modules" "$ROOT/infrastructure/node_modules" >/dev/null 2>&1 || true
+    rm -rf "$HOME/.cache"/* >/dev/null 2>&1 || true
+  fi
+  df -h "$HOME" 2>/dev/null | awk 'NR==2{print "         disk: "$4" free of "$2" ("$5" used)"}' || true
+}
+
 # ---- Pre-flight checks -------------------------------------------------------
 log "Checking prerequisites..."
 
@@ -53,6 +79,9 @@ AWS_ACCOUNT=$(aws sts get-caller-identity $PROFILE_FLAG --query Account --output
   || fail "AWS credentials not configured. Run: aws configure"
 
 ok "AWS account: $AWS_ACCOUNT | region: $REGION | profile: ${PROFILE:-default}"
+
+# ---- Reclaim disk space up front (prevents ENOSPC on CloudShell) -------------
+free_space "start"
 
 # ---- Install CDK CLI ---------------------------------------------------------
 log "Installing/updating AWS CDK CLI..."
@@ -135,11 +164,11 @@ if [ -n "$AMPLIFY_APP_ID" ] && [ "$AMPLIFY_APP_ID" != "<AmplifyAppId from CloudF
 fi
 
 # ---- Build frontend ----------------------------------------------------------
-log "Building Next.js frontend..."
-cd ../frontend
+# Reclaim space before the (heavy) frontend build: drop CDK deps + stale caches.
+free_space "pre-frontend"
 
-# Free up disk space (CDK node_modules no longer needed after deploy)
-rm -rf ../infrastructure/node_modules
+log "Building Next.js frontend..."
+cd "$(dirname "$0")/frontend"
 
 npm install --quiet
 
