@@ -528,6 +528,7 @@ const RoundStage: React.FC<{
                   {targetDescription[t.id] && (
                     <InfoIcon
                       tooltip={targetDescription[t.id]}
+                      title={t.label}
                       color="#fff"
                       size={15}
                       label={`About ${t.label}`}
