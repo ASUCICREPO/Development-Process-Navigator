@@ -33,6 +33,14 @@ const CARD_TYPE_COLOR: Record<CardType, string> = {
 // A pseudo "step" after the last round for the budget/schedule extension.
 const BUDGET_STEP = "__budget__";
 
+// Card types whose cards can be placed in more than one bucket at once
+// (e.g. a Civil Engineer contributes to several major activities).
+const REUSABLE_CARD_TYPES: ReadonlySet<CardType> = new Set<CardType>(["PROFESSIONAL"]);
+
+function isReusableRound(round: RoundView): boolean {
+  return REUSABLE_CARD_TYPES.has(round.cardType);
+}
+
 export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
   const rounds = exercise.rounds;
   const [stepIndex, setStepIndex] = useState(0); // 0..rounds.length (last = budget step)
@@ -410,12 +418,13 @@ const RoundStage: React.FC<{
   onRemove: (cardId: string, targetId: string) => void;
 }> = ({ round, placements, locked, dragOver, setDragOver, onDragStart, onDropTarget, onDropPool, onRemove }) => {
   const color = CARD_TYPE_COLOR[round.cardType];
-  const placedCardIds = new Set(
-    Object.entries(placements).filter(([, t]) => t.length > 0).map(([cid]) => cid)
-  );
-  const poolCards = round.cards.filter((c) => !placedCardIds.has(c.cardId));
-  const cardTitle: Record<string, string> = {};
-  round.cards.forEach((c) => (cardTitle[c.cardId] = c.title));
+  const reusable = isReusableRound(round);
+  const placedCount = (cardId: string) => (placements[cardId] ?? []).length;
+  // Reusable rounds keep every card in the pool so it can be dropped into
+  // several buckets; otherwise a placed card leaves the pool.
+  const poolCards = reusable ? round.cards : round.cards.filter((c) => placedCount(c.cardId) === 0);
+  const unplacedCount = round.cards.filter((c) => placedCount(c.cardId) === 0).length;
+  const allPlacedOnce = unplacedCount === 0;
 
   return (
     <div>
@@ -424,6 +433,11 @@ const RoundStage: React.FC<{
         <h2 style={styles.roundTitle}>{round.title}</h2>
         <p style={styles.roundInstr}>{round.instructions}</p>
         {round.optional && <span style={styles.optionalTag}>Optional round</span>}
+        {reusable && !locked && (
+          <p style={styles.reuseHint}>
+            Roles can be used more than once. Drag the same card from the pool into every activity it contributes to.
+          </p>
+        )}
       </div>
 
       <div style={styles.boardLayout}>
@@ -435,22 +449,50 @@ const RoundStage: React.FC<{
         >
           <div style={styles.poolHeader}>
             <span style={styles.poolTitle}>{CARD_TYPE_LABEL[round.cardType]} Cards</span>
-            <span style={{ ...styles.countBadge, background: color }}>{poolCards.length}</span>
+            <span
+              style={{ ...styles.countBadge, background: color }}
+              title={reusable ? "Cards not yet placed anywhere" : undefined}
+            >
+              {unplacedCount}
+            </span>
           </div>
           <div style={styles.poolList}>
-            {poolCards.map((c) => (
-              <div
-                key={c.cardId}
-                draggable={!locked}
-                onDragStart={() => onDragStart(c.cardId, null)}
-                style={{ ...styles.card, borderLeft: `4px solid ${color}` }}
-                data-testid={`card-${c.cardId}`}
-              >
-                <div style={styles.cardTitle}>{c.title}</div>
-                {c.description && <div style={styles.cardDesc}>{c.description}</div>}
-              </div>
-            ))}
-            {poolCards.length === 0 && (
+            {reusable && allPlacedOnce && (
+              <p style={styles.allPlacedInline}>
+                Every role is placed at least once. You can move on, or add roles to more activities.
+              </p>
+            )}
+            {poolCards.map((c) => {
+              const uses = placedCount(c.cardId);
+              return (
+                <div
+                  key={c.cardId}
+                  draggable={!locked}
+                  onDragStart={() => onDragStart(c.cardId, null)}
+                  style={{
+                    ...styles.card,
+                    borderLeft: `4px solid ${color}`,
+                    background: reusable && uses > 0 ? "#f9fafb" : styles.card.background,
+                  }}
+                  data-testid={`card-${c.cardId}`}
+                >
+                  <div style={styles.cardTitleRow}>
+                    <div style={styles.cardTitle}>{c.title}</div>
+                    {reusable && uses > 0 && (
+                      <span
+                        style={{ ...styles.useBadge, color, borderColor: color }}
+                        aria-label={`Placed in ${uses} ${uses === 1 ? "activity" : "activities"}`}
+                        data-testid={`uses-${c.cardId}`}
+                      >
+                        ×{uses}
+                      </span>
+                    )}
+                  </div>
+                  {c.description && <div style={styles.cardDesc}>{c.description}</div>}
+                </div>
+              );
+            })}
+            {!reusable && poolCards.length === 0 && (
               <p style={styles.allPlaced}>All cards placed. You can move on.</p>
             )}
           </div>
@@ -686,8 +728,15 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 8, cursor: "grab",
   },
   cardTitle: { fontSize: 13, fontWeight: 700, color: "#111827" },
+  cardTitleRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  useBadge: {
+    fontSize: 11, fontWeight: 700, border: "1px solid", borderRadius: 10,
+    padding: "1px 7px", background: "#fff", flexShrink: 0,
+  },
   cardDesc: { fontSize: 11, color: "#6b7280", marginTop: 3, lineHeight: 1.4 },
   allPlaced: { color: "#9ca3af", fontSize: 13, textAlign: "center" as const, padding: 20 },
+  allPlacedInline: { color: "#2e7d32", fontSize: 12, fontWeight: 600, margin: "0 4px 10px", lineHeight: 1.4 },
+  reuseHint: { fontSize: 13, color: "#2e7d32", fontWeight: 600, margin: "8px 0 0", maxWidth: 720 },
   targetsArea: { flex: 1, display: "flex", gap: 8, overflowX: "auto" as const, paddingBottom: 8 },
   targetCol: {
     minWidth: 170, flex: 1, background: "#fff", border: "2px solid #e5e7eb",
