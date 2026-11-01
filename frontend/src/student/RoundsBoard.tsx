@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ApiClient } from "../shared/apiClient";
+import { InfoIcon } from "../shared/InfoIcon";
 import {
   BudgetSchedule,
   CardType,
@@ -143,6 +144,15 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
     return m;
   }, [exercise.activities]);
 
+  // Help text for each bucket: stage descriptions (Round 2) and
+  // major-activity descriptions (Rounds 3-5), keyed by target id.
+  const targetDescription = useMemo(() => {
+    const m: Record<string, string> = {};
+    (exercise.stages ?? []).forEach((s) => { if (s.description) m[s.stageId] = s.description; });
+    (exercise.activities ?? []).forEach((a) => { if (a.description) m[a.activityId] = a.description; });
+    return m;
+  }, [exercise.stages, exercise.activities]);
+
   // Seed a default order for a SEQUENCE_ORDER round the first time it's shown,
   // so every card has a position (the round is scoreable even if untouched).
   useEffect(() => {
@@ -269,6 +279,7 @@ export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
           round={round}
           placements={placements[round.roundId] ?? {}}
           activityLabel={activityLabel}
+          targetDescription={targetDescription}
           locked={locked}
           dragOver={dragOver}
           setDragOver={setDragOver}
@@ -409,6 +420,7 @@ const RoundStage: React.FC<{
   round: RoundView;
   placements: Record<string, string[]>;
   activityLabel: Record<string, string>;
+  targetDescription: Record<string, string>;
   locked: boolean;
   dragOver: string | null;
   setDragOver: (v: string | null) => void;
@@ -416,7 +428,7 @@ const RoundStage: React.FC<{
   onDropTarget: (targetId: string) => void;
   onDropPool: () => void;
   onRemove: (cardId: string, targetId: string) => void;
-}> = ({ round, placements, locked, dragOver, setDragOver, onDragStart, onDropTarget, onDropPool, onRemove }) => {
+}> = ({ round, placements, targetDescription, locked, dragOver, setDragOver, onDragStart, onDropTarget, onDropPool, onRemove }) => {
   const color = CARD_TYPE_COLOR[round.cardType];
   const reusable = isReusableRound(round);
   const placedCount = (cardId: string) => (placements[cardId] ?? []).length;
@@ -511,7 +523,17 @@ const RoundStage: React.FC<{
                 onDragOver={(e) => { e.preventDefault(); setDragOver(t.id); }}
                 onDrop={() => onDropTarget(t.id)}
               >
-                <div style={{ ...styles.targetHeader, background: color }}>{t.label}</div>
+                <div style={{ ...styles.targetHeader, background: color }}>
+                  <span>{t.label}</span>
+                  {targetDescription[t.id] && (
+                    <InfoIcon
+                      tooltip={targetDescription[t.id]}
+                      color="#fff"
+                      size={15}
+                      label={`About ${t.label}`}
+                    />
+                  )}
+                </div>
                 <div style={styles.targetBody}>
                   {cardsHere.length === 0 && <p style={styles.dropHint}>Drop here</p>}
                   {cardsHere.map((c) => (
@@ -742,7 +764,10 @@ const styles: Record<string, React.CSSProperties> = {
     minWidth: 170, flex: 1, background: "#fff", border: "2px solid #e5e7eb",
     borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden",
   },
-  targetHeader: { color: "#fff", fontSize: 12, fontWeight: 700, padding: "10px 12px", lineHeight: 1.3 },
+  targetHeader: {
+    color: "#fff", fontSize: 12, fontWeight: 700, padding: "10px 12px", lineHeight: 1.3,
+    display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 4,
+  },
   targetBody: { flex: 1, padding: 8, minHeight: 120 },
   dropHint: { color: "#d1d5db", fontSize: 13, textAlign: "center" as const, padding: "24px 0", fontStyle: "italic" as const },
   placedCard: {
