@@ -6,6 +6,7 @@
 #   ./deploy.sh                     # deploy to default AWS profile / us-east-1
 #   AWS_PROFILE=myprofile ./deploy.sh
 #   AWS_REGION=us-west-2 ./deploy.sh
+#   INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh   # otherwise you are prompted for it
 #
 # Works in AWS CloudShell (no local tooling needed) or any machine with:
 #   - AWS CLI v2
@@ -79,6 +80,17 @@ AWS_ACCOUNT=$(aws sts get-caller-identity $PROFILE_FLAG --query Account --output
   || fail "AWS credentials not configured. Run: aws configure"
 
 ok "AWS account: $AWS_ACCOUNT | region: $REGION | profile: ${PROFILE:-default}"
+
+# ---- Instructor access code (never stored in the repo) -----------------------
+# Read from INSTRUCTOR_ACCESS_CODE, or prompt (hidden input) when run interactively.
+if [ -z "${INSTRUCTOR_ACCESS_CODE:-}" ] && [ -t 0 ]; then
+  read -r -s -p "Instructor access code (instructors enter this to register): " INSTRUCTOR_ACCESS_CODE
+  echo ""
+fi
+[ -n "${INSTRUCTOR_ACCESS_CODE:-}" ] || \
+  fail "Instructor access code required. Run: INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh"
+export INSTRUCTOR_ACCESS_CODE
+ok "Instructor access code provided (not displayed)"
 
 # ---- Reclaim disk space up front (prevents ENOSPC on CloudShell) -------------
 free_space "start"
@@ -253,8 +265,8 @@ echo -e "  AWS Account  : ${CYAN}${AWS_ACCOUNT}${NC}"
 echo -e "  Region       : ${CYAN}${REGION}${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
-echo "  Instructor Access Code: Set in infrastructure/lib/processcanvas-stack.ts (INSTRUCTOR_ACCESS_CODE)"
-echo "  (Change in infrastructure/lib/processcanvas-stack.ts → INSTRUCTOR_ACCESS_CODE)"
+echo "  Instructor Access Code: the value you supplied via INSTRUCTOR_ACCESS_CODE"
+echo "  (To rotate: re-run with INSTRUCTOR_ACCESS_CODE=<new code> ./deploy.sh)"
 echo ""
 echo -e "${GREEN}Open the app:${NC} $FRONTEND_URL"
 echo ""

@@ -65,6 +65,19 @@ export class ProcessCanvasStack extends Stack {
     // After deployment, add the DKIM DNS records shown in the SES console.
     // -------------------------------------------------------------------------
     const sesEmailDomain = this.node.tryGetContext("sesEmailDomain") || "wpcarey.asu.edu";
+
+    // Instructor registration gate code. Never commit it: supply it at deploy time with
+    //   cdk deploy --context instructorAccessCode=<code>
+    // or the INSTRUCTOR_ACCESS_CODE environment variable (deploy.sh does this for you).
+    const instructorAccessCode = String(
+      this.node.tryGetContext("instructorAccessCode") ?? process.env.INSTRUCTOR_ACCESS_CODE ?? "",
+    ).trim();
+    if (!instructorAccessCode) {
+      throw new Error(
+        "Missing instructor access code. Pass --context instructorAccessCode=<code> " +
+        "or set the INSTRUCTOR_ACCESS_CODE environment variable before running cdk synth/deploy.",
+      );
+    }
     new ses.EmailIdentity(this, "InstructorEmailDomain", {
       identity: ses.Identity.domain(sesEmailDomain),
     });
@@ -147,7 +160,7 @@ export class ProcessCanvasStack extends Stack {
         USER_POOL_ID: userPool.userPoolId,
         USER_POOL_CLIENT_ID: userPoolClient.userPoolClientId,
         ASSET_BUCKET: assetBucket.bucketName,
-        INSTRUCTOR_ACCESS_CODE: "MRED-2026",
+        INSTRUCTOR_ACCESS_CODE: instructorAccessCode,
         SES_SENDER_EMAIL: "no-reply@wpcarey.asu.edu",
         ...Object.fromEntries(allTables.map((t) => [`TABLE_${t.node.id.toUpperCase()}`, t.tableName])),
       },

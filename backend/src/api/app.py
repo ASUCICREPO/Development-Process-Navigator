@@ -4,8 +4,10 @@ Wires REST routes to domain logic. Auth (register/login) uses Cognito; protected
 caller from the API Gateway Cognito authorizer claims. Persistence uses DynamoDB (fixed table names).
 Reuses the pure scoring module and authoring validation/seed.
 """
+
 from __future__ import annotations
 
+import hmac
 import json
 import os
 import uuid
@@ -19,8 +21,13 @@ from ..exercise import rounds
 from ..exercise.models import Placement as ExPlacement, StudentExerciseState
 from ..exercise.service import ExerciseService
 from ..exercise.scoring import scoring as sc
-from ..shared.errors import (AppError, ConflictError, ForbiddenError,
-                             NotFoundError, ValidationError)
+from ..shared.errors import (
+    AppError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 from ..shared.types import Phase, Principal, Role
 
 _ddb = boto3.resource("dynamodb")
@@ -44,6 +51,7 @@ def _now() -> str:
 
 # ---- Principal from authorizer claims --------------------------------------
 
+
 def principal_from_event(event) -> Principal | None:
     claims = (event.get("requestContext", {}).get("authorizer", {}) or {}).get("claims")
     if not claims:
@@ -57,6 +65,7 @@ def principal_from_event(event) -> Principal | None:
 
 
 # ---- Custom phase support --------------------------------------------------
+
 
 def _make_custom_phase(name: str):
     """Return a Phase-compatible object for a custom (non-enum) phase name.
@@ -86,18 +95,22 @@ def _resolve_phase(name: str):
 
 # ---- Scoring config from a stored snapshot ---------------------------------
 
+
 def _config_from_snapshot(snapshot: dict) -> sc.Configuration:
     weights: dict[str, dict[Phase, int]] = {}
     for m in snapshot.get("mappings", []):
         aid = m["activityId"]
         phase_obj = _resolve_phase(m["phase"])
         weights.setdefault(aid, {})[phase_obj] = int(m["weight"])
-    activities = [sc.ActivityConfig(a["activityId"], weights.get(a["activityId"], {}))
-                  for a in snapshot.get("activities", [])]
+    activities = [
+        sc.ActivityConfig(a["activityId"], weights.get(a["activityId"], {}))
+        for a in snapshot.get("activities", [])
+    ]
     return sc.Configuration(activities=activities)
 
 
 # ---- Exercise helpers (DynamoDB-backed providers) --------------------------
+
 
 def _exercise_record(exercise_id: str) -> dict:
     item = _t("Exercises").get_item(Key={"exerciseId": exercise_id}).get("Item")
@@ -124,23 +137,25 @@ def _config_provider(exercise_id: str) -> sc.Configuration:
 
 
 def _record_attempt(att) -> None:
-    _t("Attempts").put_item(Item={
-        "studentId": att.student_id,
-        "attemptId": att.attempt_id,
-        "exerciseId": att.exercise_id,
-        "instructorId": att.instructor_id,
-        "versionId": att.version_id,
-        "attemptNumber": att.attempt_number,
-        "isFinal": att.is_final,
-        "scorePercent": att.score_percent,
-        "totalEarned": att.total_earned,
-        "denominator": att.denominator,
-        "cardFeedback": json.dumps(att.card_feedback),
-        "weakestMatch": json.dumps(att.weakest_match),
-        "reflectionResponse": att.reflection_response,
-        "sessionId": att.session_id,
-        "createdAt": att.created_at,
-    })
+    _t("Attempts").put_item(
+        Item={
+            "studentId": att.student_id,
+            "attemptId": att.attempt_id,
+            "exerciseId": att.exercise_id,
+            "instructorId": att.instructor_id,
+            "versionId": att.version_id,
+            "attemptNumber": att.attempt_number,
+            "isFinal": att.is_final,
+            "scorePercent": att.score_percent,
+            "totalEarned": att.total_earned,
+            "denominator": att.denominator,
+            "cardFeedback": json.dumps(att.card_feedback),
+            "weakestMatch": json.dumps(att.weakest_match),
+            "reflectionResponse": att.reflection_response,
+            "sessionId": att.session_id,
+            "createdAt": att.created_at,
+        }
+    )
 
 
 def _exercise_service() -> ExerciseService:
@@ -153,8 +168,11 @@ def _exercise_service() -> ExerciseService:
 
 
 def _load_state(exercise_id: str, student_id: str) -> StudentExerciseState:
-    item = _t("StudentExerciseState").get_item(
-        Key={"exerciseId": exercise_id, "studentId": student_id}).get("Item")
+    item = (
+        _t("StudentExerciseState")
+        .get_item(Key={"exerciseId": exercise_id, "studentId": student_id})
+        .get("Item")
+    )
     state = StudentExerciseState(exercise_id=exercise_id, student_id=student_id)
     if item:
         placements = json.loads(item.get("placements", "{}"))
@@ -168,17 +186,22 @@ def _load_state(exercise_id: str, student_id: str) -> StudentExerciseState:
 
 
 def _save_state(state: StudentExerciseState) -> None:
-    placements = {p.activity_id: sorted(ph.value for ph in p.phases) for p in state.placements}
-    _t("StudentExerciseState").put_item(Item={
-        "exerciseId": state.exercise_id,
-        "studentId": state.student_id,
-        "placements": json.dumps(placements),
-        "attemptCount": state.attempt_count,
-        "locked": state.locked,
-    })
+    placements = {
+        p.activity_id: sorted(ph.value for ph in p.phases) for p in state.placements
+    }
+    _t("StudentExerciseState").put_item(
+        Item={
+            "exerciseId": state.exercise_id,
+            "studentId": state.student_id,
+            "placements": json.dumps(placements),
+            "attemptCount": state.attempt_count,
+            "locked": state.locked,
+        }
+    )
 
 
 # ---- Auth handlers (Cognito) -----------------------------------------------
+
 
 def register(body: dict) -> dict:
     email = body.get("email", "").strip()
@@ -189,18 +212,31 @@ def register(body: dict) -> dict:
     instructor_code = body.get("instructorCode", "")
     if role not in ("INSTRUCTOR", "STUDENT"):
         raise ValidationError("Role must be INSTRUCTOR or STUDENT.")
-    # Instructor registration requires a valid access code
-    INSTRUCTOR_ACCESS_CODE = os.environ.get("INSTRUCTOR_ACCESS_CODE", "MRED-2026")
+    # Instructor registration requires a valid access code. The code is supplied
+    # only at deploy time (Lambda env var); there is deliberately no default, so
+    # an unconfigured deployment refuses instructor sign-up instead of accepting
+    # a well-known value.
     if role == "INSTRUCTOR":
-        if not instructor_code or instructor_code.strip().upper() != INSTRUCTOR_ACCESS_CODE.upper():
-            raise ForbiddenError("Invalid instructor access code. Contact your department administrator.")
+        expected_code = os.environ.get("INSTRUCTOR_ACCESS_CODE", "").strip()
+        if not expected_code:
+            raise ForbiddenError(
+                "Instructor registration is not configured. Contact your department administrator."
+            )
+        if not hmac.compare_digest(
+            instructor_code.strip().upper(), expected_code.upper()
+        ):
+            raise ForbiddenError(
+                "Invalid instructor access code. Contact your department administrator."
+            )
     if "@" not in email:
         raise ValidationError("Invalid email.")
     if len(password) < 8:
         raise ValidationError("Password must be at least 8 characters.")
     try:
         created = _cognito.admin_create_user(
-            UserPoolId=USER_POOL_ID, Username=email, MessageAction="SUPPRESS",
+            UserPoolId=USER_POOL_ID,
+            Username=email,
+            MessageAction="SUPPRESS",
             UserAttributes=[
                 {"Name": "email", "Value": email},
                 {"Name": "email_verified", "Value": "true"},
@@ -208,15 +244,24 @@ def register(body: dict) -> dict:
             ],
         )
         _cognito.admin_set_user_password(
-            UserPoolId=USER_POOL_ID, Username=email, Password=password, Permanent=True)
+            UserPoolId=USER_POOL_ID, Username=email, Password=password, Permanent=True
+        )
     except _cognito.exceptions.UsernameExistsException:
         raise ConflictError("An account with this email already exists.")
 
-    sub = next((a["Value"] for a in created["User"]["Attributes"] if a["Name"] == "sub"), email)
-    _t("Users").put_item(Item={
-        "userId": sub, "email": email, "displayName": display_name, "role": role,
-        "status": "Active", "createdAt": _now(),
-    })
+    sub = next(
+        (a["Value"] for a in created["User"]["Attributes"] if a["Name"] == "sub"), email
+    )
+    _t("Users").put_item(
+        Item={
+            "userId": sub,
+            "email": email,
+            "displayName": display_name,
+            "role": role,
+            "status": "Active",
+            "createdAt": _now(),
+        }
+    )
     if role == "STUDENT" and join_code:
         _associate_join_code(sub, join_code)
     if role == "STUDENT":
@@ -232,15 +277,20 @@ def login(body: dict) -> dict:
     password = body.get("password", "")
     try:
         resp = _cognito.initiate_auth(
-            ClientId=USER_POOL_CLIENT_ID, AuthFlow="USER_PASSWORD_AUTH",
-            AuthParameters={"USERNAME": email, "PASSWORD": password})
+            ClientId=USER_POOL_CLIENT_ID,
+            AuthFlow="USER_PASSWORD_AUTH",
+            AuthParameters={"USERNAME": email, "PASSWORD": password},
+        )
     except _cognito.exceptions.NotAuthorizedException:
         raise AppError("Invalid email or password.")
     except _cognito.exceptions.UserNotFoundException:
         raise AppError("Invalid email or password.")
     tokens = resp.get("AuthenticationResult", {})
-    return {"idToken": tokens.get("IdToken"), "accessToken": tokens.get("AccessToken"),
-            "expiresIn": tokens.get("ExpiresIn")}
+    return {
+        "idToken": tokens.get("IdToken"),
+        "accessToken": tokens.get("AccessToken"),
+        "expiresIn": tokens.get("ExpiresIn"),
+    }
 
 
 def forgot_password(body: dict) -> dict:
@@ -255,7 +305,10 @@ def forgot_password(body: dict) -> dict:
         pass
     except Exception as e:
         raise AppError(f"Could not send reset code: {str(e)}")
-    return {"ok": True, "message": "If an account exists with that email, a reset code has been sent."}
+    return {
+        "ok": True,
+        "message": "If an account exists with that email, a reset code has been sent.",
+    }
 
 
 def confirm_reset(body: dict) -> dict:
@@ -287,39 +340,52 @@ def _associate_join_code(student_id: str, code: str) -> None:
     jc = _t("JoinCodes").get_item(Key={"code": code}).get("Item")
     if not jc or jc.get("status") != "Active":
         raise ValidationError("Invalid or expired join code.")
-    _t("Enrollments").put_item(Item={
-        "instructorId": jc["instructorId"], "studentId": student_id, "source": "JOIN_CODE"})
+    _t("Enrollments").put_item(
+        Item={
+            "instructorId": jc["instructorId"],
+            "studentId": student_id,
+            "source": "JOIN_CODE",
+        }
+    )
 
 
 def _fulfill_pending_invites(student_id: str, email: str) -> None:
     """Convert any pending invite enrollments for this email into real enrollments."""
     try:
         resp = _t("Enrollments").scan()
-        pending = [e for e in resp.get("Items", [])
-                   if e.get("studentId", "").startswith("pending:") and e.get("pendingEmail") == email]
+        pending = [
+            e
+            for e in resp.get("Items", [])
+            if e.get("studentId", "").startswith("pending:")
+            and e.get("pendingEmail") == email
+        ]
         for invite in pending:
             # Delete the pending placeholder
-            _t("Enrollments").delete_item(Key={
-                "instructorId": invite["instructorId"],
-                "studentId": invite["studentId"],
-            })
+            _t("Enrollments").delete_item(
+                Key={
+                    "instructorId": invite["instructorId"],
+                    "studentId": invite["studentId"],
+                }
+            )
             # Create real enrollment
-            _t("Enrollments").put_item(Item={
-                "instructorId": invite["instructorId"],
-                "studentId": student_id,
-                "source": "INVITE",
-            })
+            _t("Enrollments").put_item(
+                Item={
+                    "instructorId": invite["instructorId"],
+                    "studentId": student_id,
+                    "source": "INVITE",
+                }
+            )
     except Exception as e:
         print(f"Error fulfilling pending invites for {email}: {e}")
 
 
 def _verify_instructor_email(email: str) -> None:
     """Request SES email verification for an instructor.
-    
+
     AWS sends a verification email to the instructor's address.
     Once they click the link, their email becomes a verified sender in SES,
     allowing them to send student invite emails from their own address.
-    
+
     This is idempotent — calling it for an already-verified email does nothing harmful.
     """
     try:
@@ -331,30 +397,46 @@ def _verify_instructor_email(email: str) -> None:
 
 # ---- Templates & Authoring -------------------------------------------------
 
+
 def _ensure_seed_template() -> None:
     """Register the five scenario templates (idempotent per scenario).
 
     Each scenario from the Instructor Manual (§5) is a separate SYSTEM_SEEDED
     template so instructors can choose the scenario that fits their learning goal.
     """
-    existing_ids = {t.get("templateId") for t in _t("Templates").scan().get("Items", [])}
+    existing_ids = {
+        t.get("templateId") for t in _t("Templates").scan().get("Items", [])
+    }
     for snap in all_scenarios():
         template_id = f"seed-scenario-{snap['scenarioId'].lower()}"
         if template_id in existing_ids:
             continue
-        _t("Templates").put_item(Item={
-            "templateId": template_id, "source": "SYSTEM_SEEDED",
-            "name": snap["name"], "snapshot": json.dumps(snap)})
+        _t("Templates").put_item(
+            Item={
+                "templateId": template_id,
+                "source": "SYSTEM_SEEDED",
+                "name": snap["name"],
+                "snapshot": json.dumps(snap),
+            }
+        )
 
 
 def list_templates(principal: Principal) -> dict:
     _require_role(principal, Role.INSTRUCTOR)
     _ensure_seed_template()
     items = _t("Templates").scan().get("Items", [])
-    visible = [t for t in items if t["source"] == "SYSTEM_SEEDED"
-               or t.get("ownerInstructorId") == principal.user_id]
-    return {"templates": [{"templateId": t["templateId"], "source": t["source"],
-                           "name": t["name"]} for t in visible]}
+    visible = [
+        t
+        for t in items
+        if t["source"] == "SYSTEM_SEEDED"
+        or t.get("ownerInstructorId") == principal.user_id
+    ]
+    return {
+        "templates": [
+            {"templateId": t["templateId"], "source": t["source"], "name": t["name"]}
+            for t in visible
+        ]
+    }
 
 
 def create_configuration(principal: Principal, body: dict) -> dict:
@@ -368,12 +450,22 @@ def create_configuration(principal: Principal, body: dict) -> dict:
             raise ValidationError("Template not found.")
         snap = json.loads(tmpl["snapshot"])
     else:
-        snap = {"phases": ["PLANNING", "CONSTRUCTION", "OPERATIONS"],
-                "activities": [], "mappings": [], "prompts": []}
+        snap = {
+            "phases": ["PLANNING", "CONSTRUCTION", "OPERATIONS"],
+            "activities": [],
+            "mappings": [],
+            "prompts": [],
+        }
     config_id = str(uuid.uuid4())
-    _t("Configurations").put_item(Item={
-        "configId": config_id, "ownerInstructorId": principal.user_id, "name": name,
-        "status": "Draft", "snapshot": json.dumps(snap)})
+    _t("Configurations").put_item(
+        Item={
+            "configId": config_id,
+            "ownerInstructorId": principal.user_id,
+            "name": name,
+            "status": "Draft",
+            "snapshot": json.dumps(snap),
+        }
+    )
     return {"configId": config_id, "snapshot": snap}
 
 
@@ -381,16 +473,30 @@ def get_configuration(principal: Principal, config_id: str) -> dict:
     """Return a configuration's full snapshot for the authoring/customizer UI."""
     _require_role(principal, Role.INSTRUCTOR)
     cfg = _load_config(principal, config_id)
-    return {"configId": config_id, "name": cfg.get("name", ""),
-            "status": cfg.get("status", "Draft"), "snapshot": json.loads(cfg["snapshot"])}
+    return {
+        "configId": config_id,
+        "name": cfg.get("name", ""),
+        "status": cfg.get("status", "Draft"),
+        "snapshot": json.loads(cfg["snapshot"]),
+    }
 
 
 # Snapshot keys the editor is allowed to merge (legacy + v2 multi-round).
 _EDITABLE_SNAPSHOT_KEYS = (
-    "activities", "mappings", "prompts", "phases",          # legacy + shared
-    "rounds", "stages", "costCategories", "scenarioId",     # v2 multi-round
-    "teachingFocus", "processCards", "professionalCards",
-    "taskCards", "decisionCards", "version",
+    "activities",
+    "mappings",
+    "prompts",
+    "phases",  # legacy + shared
+    "rounds",
+    "stages",
+    "costCategories",
+    "scenarioId",  # v2 multi-round
+    "teachingFocus",
+    "processCards",
+    "professionalCards",
+    "taskCards",
+    "decisionCards",
+    "version",
 )
 
 
@@ -410,7 +516,8 @@ def update_configuration(principal: Principal, config_id: str, body: dict) -> di
         Key={"configId": config_id},
         UpdateExpression="SET #snap = :s",
         ExpressionAttributeNames={"#snap": "snapshot"},
-        ExpressionAttributeValues={":s": json.dumps(snap)})
+        ExpressionAttributeValues={":s": json.dumps(snap)},
+    )
     return {"configId": config_id, "snapshot": snap}
 
 
@@ -421,13 +528,24 @@ def apply_configuration(principal: Principal, config_id: str) -> dict:
     validate_configuration(snap)
     number = _next_version_number(config_id)
     version_id = str(uuid.uuid4())
-    _t("ConfigurationVersions").put_item(Item={
-        "configId": config_id, "versionNumber": str(number).zfill(6),
-        "versionId": version_id, "snapshot": json.dumps(snap)})
+    _t("ConfigurationVersions").put_item(
+        Item={
+            "configId": config_id,
+            "versionNumber": str(number).zfill(6),
+            "versionId": version_id,
+            "snapshot": json.dumps(snap),
+        }
+    )
     exercise_id = str(uuid.uuid4())
-    _t("Exercises").put_item(Item={
-        "exerciseId": exercise_id, "configId": config_id, "versionId": version_id,
-        "ownerInstructorId": principal.user_id, "status": "Active"})
+    _t("Exercises").put_item(
+        Item={
+            "exerciseId": exercise_id,
+            "configId": config_id,
+            "versionId": version_id,
+            "ownerInstructorId": principal.user_id,
+            "status": "Active",
+        }
+    )
     return {"exerciseId": exercise_id, "versionId": version_id, "versionNumber": number}
 
 
@@ -442,11 +560,13 @@ def _load_config(principal: Principal, config_id: str) -> dict:
 
 def _next_version_number(config_id: str) -> int:
     resp = _t("ConfigurationVersions").query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("configId").eq(config_id))
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("configId").eq(config_id)
+    )
     return len(resp.get("Items", [])) + 1
 
 
 # ---- Exercise & Scoring ----------------------------------------------------
+
 
 def get_exercise(principal: Principal, exercise_id: str) -> dict:
     ex = _exercise_record(exercise_id)
@@ -454,8 +574,11 @@ def get_exercise(principal: Principal, exercise_id: str) -> dict:
 
     if rounds.is_multi_round(snap):
         # v2 multi-round exercise: return rounds + round-scoped placements.
-        item = _t("StudentExerciseState").get_item(
-            Key={"exerciseId": exercise_id, "studentId": principal.user_id}).get("Item")
+        item = (
+            _t("StudentExerciseState")
+            .get_item(Key={"exerciseId": exercise_id, "studentId": principal.user_id})
+            .get("Item")
+        )
         round_placements = json.loads(item.get("roundPlacements", "{}")) if item else {}
         budget_schedule = json.loads(item.get("budgetSchedule", "{}")) if item else {}
         return {
@@ -476,7 +599,9 @@ def get_exercise(principal: Principal, exercise_id: str) -> dict:
 
     # Legacy single-sort exercise.
     state = _load_state(exercise_id, principal.user_id)
-    placements = {p.activity_id: sorted(ph.value for ph in p.phases) for p in state.placements}
+    placements = {
+        p.activity_id: sorted(ph.value for ph in p.phases) for p in state.placements
+    }
     return {
         "exerciseId": exercise_id,
         "version": 1,
@@ -494,24 +619,34 @@ def _rounds_view(snap: dict) -> list[dict]:
     for rnd in snap.get("rounds", []):
         if not rnd.get("cards"):
             continue  # skip empty optional rounds
-        view.append({
-            "roundId": rnd["roundId"],
-            "order": rnd.get("order"),
-            "kind": rnd.get("kind"),
-            "cardType": rnd.get("cardType"),
-            "title": rnd.get("title"),
-            "instructions": rnd.get("instructions"),
-            "optional": bool(rnd.get("optional", False)),
-            "targetKind": rnd.get("targetKind"),
-            "targets": rnd.get("targets", []),
-            "cards": [{"cardId": c["cardId"], "cardType": c.get("cardType"),
-                       "title": c["title"], "description": c.get("description", "")}
-                      for c in rnd["cards"]],
-        })
+        view.append(
+            {
+                "roundId": rnd["roundId"],
+                "order": rnd.get("order"),
+                "kind": rnd.get("kind"),
+                "cardType": rnd.get("cardType"),
+                "title": rnd.get("title"),
+                "instructions": rnd.get("instructions"),
+                "optional": bool(rnd.get("optional", False)),
+                "targetKind": rnd.get("targetKind"),
+                "targets": rnd.get("targets", []),
+                "cards": [
+                    {
+                        "cardId": c["cardId"],
+                        "cardType": c.get("cardType"),
+                        "title": c["title"],
+                        "description": c.get("description", ""),
+                    }
+                    for c in rnd["cards"]
+                ],
+            }
+        )
     return view
 
 
-def _placements_from_body(body: dict, valid_phases: set[str] | None = None) -> list[ExPlacement]:
+def _placements_from_body(
+    body: dict, valid_phases: set[str] | None = None
+) -> list[ExPlacement]:
     placements = body.get("placements", {})
     result = []
     for aid, phs in placements.items():
@@ -555,11 +690,20 @@ def _is_multi_round(exercise_id: str) -> bool:
 
 # ---- v2 multi-round state (round-scoped placements) ------------------------
 
+
 def _load_v2_state(exercise_id: str, student_id: str) -> dict:
-    item = _t("StudentExerciseState").get_item(
-        Key={"exerciseId": exercise_id, "studentId": student_id}).get("Item")
+    item = (
+        _t("StudentExerciseState")
+        .get_item(Key={"exerciseId": exercise_id, "studentId": student_id})
+        .get("Item")
+    )
     if not item:
-        return {"roundPlacements": {}, "budgetSchedule": {}, "attemptCount": 0, "locked": False}
+        return {
+            "roundPlacements": {},
+            "budgetSchedule": {},
+            "attemptCount": 0,
+            "locked": False,
+        }
     return {
         "roundPlacements": json.loads(item.get("roundPlacements", "{}")),
         "budgetSchedule": json.loads(item.get("budgetSchedule", "{}")),
@@ -569,14 +713,16 @@ def _load_v2_state(exercise_id: str, student_id: str) -> dict:
 
 
 def _save_v2_state(exercise_id: str, student_id: str, st: dict) -> None:
-    _t("StudentExerciseState").put_item(Item={
-        "exerciseId": exercise_id,
-        "studentId": student_id,
-        "roundPlacements": json.dumps(st.get("roundPlacements", {})),
-        "budgetSchedule": json.dumps(st.get("budgetSchedule", {})),
-        "attemptCount": st.get("attemptCount", 0),
-        "locked": st.get("locked", False),
-    })
+    _t("StudentExerciseState").put_item(
+        Item={
+            "exerciseId": exercise_id,
+            "studentId": student_id,
+            "roundPlacements": json.dumps(st.get("roundPlacements", {})),
+            "budgetSchedule": json.dumps(st.get("budgetSchedule", {})),
+            "attemptCount": st.get("attemptCount", 0),
+            "locked": st.get("locked", False),
+        }
+    )
 
 
 def _round_placements_from_body(body: dict) -> dict:
@@ -588,35 +734,44 @@ def _round_placements_from_body(body: dict) -> dict:
     for round_id, cards in rp.items():
         if not isinstance(cards, dict):
             continue
-        clean[round_id] = {cid: [str(t) for t in (targets or [])]
-                           for cid, targets in cards.items()}
+        clean[round_id] = {
+            cid: [str(t) for t in (targets or [])] for cid, targets in cards.items()
+        }
     return clean
 
 
-def _record_v2_attempt(exercise_id: str, student_id: str, snap: dict,
-                       result: dict, attempt_number: int, budget_schedule: dict) -> dict:
+def _record_v2_attempt(
+    exercise_id: str,
+    student_id: str,
+    snap: dict,
+    result: dict,
+    attempt_number: int,
+    budget_schedule: dict,
+) -> dict:
     ex = _exercise_record(exercise_id)
     attempt_id = str(uuid.uuid4())
-    _t("Attempts").put_item(Item={
-        "studentId": student_id,
-        "attemptId": attempt_id,
-        "exerciseId": exercise_id,
-        "instructorId": ex.get("ownerInstructorId", ""),
-        "versionId": ex.get("versionId", ""),
-        "attemptNumber": attempt_number,
-        "isFinal": True,
-        "scorePercent": result["scorePercent"],
-        "totalEarned": result["totalEarned"],
-        "denominator": result["denominator"],
-        "roundResults": json.dumps(result["roundResults"]),
-        "weakestMatch": json.dumps(result["weakestMatch"]),
-        "budgetSchedule": json.dumps(budget_schedule or {}),
-        "cardFeedback": json.dumps([]),  # legacy field kept for history rows
-        "reflectionResponse": None,
-        "sessionId": None,
-        "createdAt": _now(),
-        "version": 2,
-    })
+    _t("Attempts").put_item(
+        Item={
+            "studentId": student_id,
+            "attemptId": attempt_id,
+            "exerciseId": exercise_id,
+            "instructorId": ex.get("ownerInstructorId", ""),
+            "versionId": ex.get("versionId", ""),
+            "attemptNumber": attempt_number,
+            "isFinal": True,
+            "scorePercent": result["scorePercent"],
+            "totalEarned": result["totalEarned"],
+            "denominator": result["denominator"],
+            "roundResults": json.dumps(result["roundResults"]),
+            "weakestMatch": json.dumps(result["weakestMatch"]),
+            "budgetSchedule": json.dumps(budget_schedule or {}),
+            "cardFeedback": json.dumps([]),  # legacy field kept for history rows
+            "reflectionResponse": None,
+            "sessionId": None,
+            "createdAt": _now(),
+            "version": 2,
+        }
+    )
     return {
         "attemptId": attempt_id,
         "attemptNumber": attempt_number,
@@ -639,12 +794,15 @@ def _submit_v2(exercise_id: str, student_id: str, body: dict) -> dict:
 
     complete, missing = rounds.all_cards_placed(snap, st["roundPlacements"])
     if not complete:
-        raise ValidationError(f"Incomplete. Place every card in every round. Missing: {missing}")
+        raise ValidationError(
+            f"Incomplete. Place every card in every round. Missing: {missing}"
+        )
 
     result = rounds.score_rounds(snap, st["roundPlacements"])
     attempt_number = st["attemptCount"] + 1  # 1 (submit) or 2 (resubmit)
-    view = _record_v2_attempt(exercise_id, student_id, snap, result,
-                              attempt_number, st["budgetSchedule"])
+    view = _record_v2_attempt(
+        exercise_id, student_id, snap, result, attempt_number, st["budgetSchedule"]
+    )
     st["attemptCount"] = attempt_number
     if attempt_number >= 2:
         st["locked"] = True
@@ -659,8 +817,13 @@ def _maybe_notify_session(body: dict, student_id: str) -> None:
     if not session_id:
         return
     try:
-        _t("SessionParticipants").put_item(Item={
-            "sessionId": session_id, "studentId": student_id, "status": "Submitted"})
+        _t("SessionParticipants").put_item(
+            Item={
+                "sessionId": session_id,
+                "studentId": student_id,
+                "status": "Submitted",
+            }
+        )
     except Exception:
         pass
 
@@ -692,7 +855,9 @@ def save_budget_schedule(principal: Principal, exercise_id: str, body: dict) -> 
     budgetSchedule shape: { activityId: {costCategory, durationDays, predecessors:[activityId]} }
     """
     if not _is_multi_round(exercise_id):
-        raise ValidationError("Budget/schedule is only available for multi-round exercises.")
+        raise ValidationError(
+            "Budget/schedule is only available for multi-round exercises."
+        )
     st = _load_v2_state(exercise_id, principal.user_id)
     st["budgetSchedule"] = body.get("budgetSchedule") or {}
     _save_v2_state(exercise_id, principal.user_id, st)
@@ -727,19 +892,27 @@ def verify(principal: Principal, exercise_id: str, body: dict) -> dict:
     revised = _placements_from_body(body, valid_phases)
     _exercise_service().verify(state, revised)
     _save_state(state)
-    return {"ok": True, "placements": {p.activity_id: sorted(ph.value for ph in p.phases)
-                                       for p in state.placements}}
+    return {
+        "ok": True,
+        "placements": {
+            p.activity_id: sorted(ph.value for ph in p.phases) for p in state.placements
+        },
+    }
 
 
 def resubmit(principal: Principal, exercise_id: str, body: dict) -> dict:
     if _is_multi_round(exercise_id):
         st = _load_v2_state(exercise_id, principal.user_id)
         if st["attemptCount"] != 1 or st["locked"]:
-            raise ConflictError("Resubmission is not allowed (already used or not submitted).")
+            raise ConflictError(
+                "Resubmission is not allowed (already used or not submitted)."
+            )
         return _submit_v2(exercise_id, principal.user_id, body)
     state = _load_state(exercise_id, principal.user_id)
     valid_phases = _exercise_valid_phases(exercise_id)
-    revised = _placements_from_body(body, valid_phases) if body.get("placements") else None
+    revised = (
+        _placements_from_body(body, valid_phases) if body.get("placements") else None
+    )
     attempt = _exercise_service().resubmit(state, revised)
     _save_state(state)
     return _attempt_view(attempt)
@@ -747,21 +920,30 @@ def resubmit(principal: Principal, exercise_id: str, body: dict) -> dict:
 
 def _attempt_view(att) -> dict:
     return {
-        "attemptId": att.attempt_id, "attemptNumber": att.attempt_number,
-        "isFinal": att.is_final, "scorePercent": att.score_percent,
-        "cardFeedback": att.card_feedback, "weakestMatch": att.weakest_match,
+        "attemptId": att.attempt_id,
+        "attemptNumber": att.attempt_number,
+        "isFinal": att.is_final,
+        "scorePercent": att.score_percent,
+        "cardFeedback": att.card_feedback,
+        "weakestMatch": att.weakest_match,
     }
 
 
 # ---- Results & History -----------------------------------------------------
 
+
 def get_history(principal: Principal, student_id: str) -> dict:
-    if not (principal.role == Role.STUDENT and principal.user_id == student_id) \
-            and principal.role != Role.INSTRUCTOR:
+    if (
+        not (principal.role == Role.STUDENT and principal.user_id == student_id)
+        and principal.role != Role.INSTRUCTOR
+    ):
         raise ForbiddenError("Not allowed.")
     resp = _t("Attempts").query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(student_id))
-    items = sorted(resp.get("Items", []), key=lambda a: a.get("createdAt", ""), reverse=True)
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(student_id)
+    )
+    items = sorted(
+        resp.get("Items", []), key=lambda a: a.get("createdAt", ""), reverse=True
+    )
     return {"attempts": [_history_row(a) for a in items]}
 
 
@@ -818,7 +1000,7 @@ def _attempt_label_maps(snap: dict) -> dict:
         for c in rnd.get("cards", []):
             card_titles[c["cardId"]] = c.get("title", c["cardId"])
         # highest weight per card = the "correct"/primary target(s)
-        best: dict[str, tuple] = {}          # cardId -> (weight, [targets])
+        best: dict[str, tuple] = {}  # cardId -> (weight, [targets])
         for m in rnd.get("mappings", []):
             cid, tid, w = m["cardId"], m["targetId"], int(m["weight"])
             cur = best.get(cid)
@@ -828,8 +1010,11 @@ def _attempt_label_maps(snap: dict) -> dict:
                 cur[1].append(tid)
         correct[rnd["roundId"]] = {cid: tgts for cid, (w, tgts) in best.items()}
 
-    return {"cardTitles": card_titles, "targetLabels": target_labels,
-            "correctTargets": correct}
+    return {
+        "cardTitles": card_titles,
+        "targetLabels": target_labels,
+        "correctTargets": correct,
+    }
 
 
 def get_attempt(principal: Principal, attempt_id: str) -> dict:
@@ -839,8 +1024,10 @@ def get_attempt(principal: Principal, attempt_id: str) -> dict:
             row = _history_row(a, full=True)
             snap = _resolve_attempt_snapshot(a)
             if snap:
-                row["activityNames"] = {act["activityId"]: act.get("title", act["activityId"])
-                                        for act in snap.get("activities", [])}
+                row["activityNames"] = {
+                    act["activityId"]: act.get("title", act["activityId"])
+                    for act in snap.get("activities", [])
+                }
                 if rounds.is_multi_round(snap):
                     row.update(_attempt_label_maps(snap))
             return row
@@ -849,7 +1036,10 @@ def get_attempt(principal: Principal, attempt_id: str) -> dict:
 
 def save_reflection(principal: Principal, attempt_id: str, body: dict) -> dict:
     resp = _t("Attempts").query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(principal.user_id))
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(
+            principal.user_id
+        )
+    )
     for a in resp.get("Items", []):
         if a["attemptId"] == attempt_id:
             if a.get("reflectionResponse"):
@@ -857,7 +1047,8 @@ def save_reflection(principal: Principal, attempt_id: str, body: dict) -> dict:
             _t("Attempts").update_item(
                 Key={"studentId": a["studentId"], "attemptId": attempt_id},
                 UpdateExpression="SET reflectionResponse = :r",
-                ExpressionAttributeValues={":r": body.get("response", "")})
+                ExpressionAttributeValues={":r": body.get("response", "")},
+            )
             return {"ok": True}
     raise NotFoundError("Attempt not found.")
 
@@ -865,26 +1056,40 @@ def save_reflection(principal: Principal, attempt_id: str, body: dict) -> dict:
 def list_exercises(principal: Principal) -> dict:
     resp = _t("Exercises").scan()
     if principal.role == Role.INSTRUCTOR:
-        items = [e for e in resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+        items = [
+            e
+            for e in resp.get("Items", [])
+            if e.get("ownerInstructorId") == principal.user_id
+        ]
     else:
         # Students only see exercises from instructors they're enrolled with,
         # or exercises they've already started (have state for)
         # 1. Get enrolled instructor IDs
         enrolled_resp = _t("Enrollments").scan()
-        my_instructors = {en["instructorId"] for en in enrolled_resp.get("Items", [])
-                         if en.get("studentId") == principal.user_id}
+        my_instructors = {
+            en["instructorId"]
+            for en in enrolled_resp.get("Items", [])
+            if en.get("studentId") == principal.user_id
+        }
 
         # 2. Get exercises I already have state for
         state_resp = _t("StudentExerciseState").scan()
-        my_exercise_ids = {s["exerciseId"] for s in state_resp.get("Items", [])
-                          if s.get("studentId") == principal.user_id}
+        my_exercise_ids = {
+            s["exerciseId"]
+            for s in state_resp.get("Items", [])
+            if s.get("studentId") == principal.user_id
+        }
 
         # 3. Filter: exercises from my instructors OR exercises I've started
-        items = [e for e in resp.get("Items", [])
-                 if e.get("status") == "Active" and (
-                     e.get("ownerInstructorId") in my_instructors or
-                     e.get("exerciseId") in my_exercise_ids
-                 )]
+        items = [
+            e
+            for e in resp.get("Items", [])
+            if e.get("status") == "Active"
+            and (
+                e.get("ownerInstructorId") in my_instructors
+                or e.get("exerciseId") in my_exercise_ids
+            )
+        ]
 
     # Enrich with configuration name as title
     exercises = []
@@ -895,12 +1100,14 @@ def list_exercises(principal: Principal) -> dict:
             cfg = _t("Configurations").get_item(Key={"configId": config_id}).get("Item")
             if cfg:
                 title = cfg.get("name", title)
-        exercises.append({
-            "exerciseId": e["exerciseId"],
-            "configId": e.get("configId", ""),
-            "title": title,
-            "status": e.get("status", "Active"),
-        })
+        exercises.append(
+            {
+                "exerciseId": e["exerciseId"],
+                "configId": e.get("configId", ""),
+                "title": title,
+                "status": e.get("status", "Active"),
+            }
+        )
     return {"exercises": exercises}
 
 
@@ -911,12 +1118,16 @@ def class_results(principal: Principal, exercise_id: str) -> dict:
         raise ForbiddenError("Not the owner of this exercise.")
     resp = _t("Attempts").query(
         IndexName="byExercise",
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(exercise_id))
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(
+            exercise_id
+        ),
+    )
     finals = [a for a in resp.get("Items", []) if a.get("isFinal") in (True, 1)]
     return {"results": [_history_row(a) for a in finals]}
 
 
 import re as _re
+
 _UUID_RE = _re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-", _re.IGNORECASE)
 
 
@@ -940,7 +1151,11 @@ def _exercise_title(exercise_id: str) -> str:
         except Exception:
             pass
         # 2) configuration name (if it isn't a UUID)
-        cfg = _t("Configurations").get_item(Key={"configId": config_id}).get("Item") if config_id else None
+        cfg = (
+            _t("Configurations").get_item(Key={"configId": config_id}).get("Item")
+            if config_id
+            else None
+        )
         if cfg:
             name = (cfg.get("name") or "").strip()
             if name and not _UUID_RE.match(name):
@@ -960,7 +1175,8 @@ def _exercise_title(exercise_id: str) -> str:
 
 def _history_row(a: dict, full: bool = False) -> dict:
     row = {
-        "attemptId": a["attemptId"], "exerciseId": a["exerciseId"],
+        "attemptId": a["attemptId"],
+        "exerciseId": a["exerciseId"],
         "attemptNumber": int(a.get("attemptNumber") or 1),
         "isFinal": bool(a.get("isFinal")),
         "scorePercent": int(a.get("scorePercent") or 0),
@@ -991,25 +1207,35 @@ def _require_role(principal: Principal | None, role: Role) -> Principal:
 
 # ---- Roster & Dashboard Stats -----------------------------------------------
 
+
 def get_roster(principal: Principal) -> dict:
     """List all students enrolled with this instructor, enriched with their latest attempt data."""
     _require_role(principal, Role.INSTRUCTOR)
 
     # Get enrollments for this instructor
     resp = _t("Enrollments").query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("instructorId").eq(principal.user_id))
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("instructorId").eq(
+            principal.user_id
+        )
+    )
     enrollments = resp.get("Items", [])
 
     # Also check Users table for all students (fallback if no enrollments table usage)
     users_resp = _t("Users").scan()
-    all_students = [u for u in users_resp.get("Items", []) if u.get("role") == "STUDENT"]
+    all_students = [
+        u for u in users_resp.get("Items", []) if u.get("role") == "STUDENT"
+    ]
 
     # Only show enrolled students
     student_ids = [e["studentId"] for e in enrollments]
 
     # Get exercises for this instructor
     ex_resp = _t("Exercises").scan()
-    instructor_exercises = [e for e in ex_resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+    instructor_exercises = [
+        e
+        for e in ex_resp.get("Items", [])
+        if e.get("ownerInstructorId") == principal.user_id
+    ]
     exercise_ids = [e["exerciseId"] for e in instructor_exercises]
 
     # Build roster with attempt data
@@ -1021,8 +1247,13 @@ def get_roster(principal: Principal) -> dict:
 
         # Get this student's attempts for instructor's exercises
         attempts_resp = _t("Attempts").query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(sid))
-        student_attempts = [a for a in attempts_resp.get("Items", []) if a.get("exerciseId") in exercise_ids]
+            KeyConditionExpression=boto3.dynamodb.conditions.Key("studentId").eq(sid)
+        )
+        student_attempts = [
+            a
+            for a in attempts_resp.get("Items", [])
+            if a.get("exerciseId") in exercise_ids
+        ]
         student_attempts.sort(key=lambda a: a.get("createdAt", ""), reverse=True)
 
         latest = student_attempts[0] if student_attempts else None
@@ -1038,8 +1269,11 @@ def get_roster(principal: Principal) -> dict:
             # Check if they have a state (started but not submitted)
             state_items = []
             for eid in exercise_ids:
-                s = _t("StudentExerciseState").get_item(
-                    Key={"exerciseId": eid, "studentId": sid}).get("Item")
+                s = (
+                    _t("StudentExerciseState")
+                    .get_item(Key={"exerciseId": eid, "studentId": sid})
+                    .get("Item")
+                )
                 if s:
                     state_items.append(s)
             if state_items:
@@ -1050,23 +1284,38 @@ def get_roster(principal: Principal) -> dict:
         # Get exercise title for latest attempt
         exercise_title = ""
         if latest:
-            ex_match = next((e for e in instructor_exercises if e["exerciseId"] == latest["exerciseId"]), None)
+            ex_match = next(
+                (
+                    e
+                    for e in instructor_exercises
+                    if e["exerciseId"] == latest["exerciseId"]
+                ),
+                None,
+            )
             if ex_match and ex_match.get("configId"):
-                cfg = _t("Configurations").get_item(Key={"configId": ex_match["configId"]}).get("Item")
+                cfg = (
+                    _t("Configurations")
+                    .get_item(Key={"configId": ex_match["configId"]})
+                    .get("Item")
+                )
                 if cfg:
                     exercise_title = cfg.get("name", "")
             if not exercise_title:
                 exercise_title = latest.get("exerciseId", "")[:12]
 
-        roster.append({
-            "studentId": sid,
-            "name": user.get("displayName", user.get("email", "").split("@")[0]),
-            "email": user.get("email", ""),
-            "joined": user.get("createdAt", ""),
-            "exercise": exercise_title,
-            "score": int(latest["scorePercent"]) if latest and latest.get("scorePercent") else None,
-            "status": status,
-        })
+        roster.append(
+            {
+                "studentId": sid,
+                "name": user.get("displayName", user.get("email", "").split("@")[0]),
+                "email": user.get("email", ""),
+                "joined": user.get("createdAt", ""),
+                "exercise": exercise_title,
+                "score": int(latest["scorePercent"])
+                if latest and latest.get("scorePercent")
+                else None,
+                "status": status,
+            }
+        )
 
     return {"roster": roster, "totalStudents": len(roster)}
 
@@ -1081,10 +1330,20 @@ def get_instructor_stats(principal: Principal) -> dict:
 
     # Count exercises
     ex_resp = _t("Exercises").scan()
-    exercise_count = len([e for e in ex_resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id])
+    exercise_count = len(
+        [
+            e
+            for e in ex_resp.get("Items", [])
+            if e.get("ownerInstructorId") == principal.user_id
+        ]
+    )
 
     # Recent activity: latest attempts across all instructor exercises
-    instructor_exercises = [e for e in ex_resp.get("Items", []) if e.get("ownerInstructorId") == principal.user_id]
+    instructor_exercises = [
+        e
+        for e in ex_resp.get("Items", [])
+        if e.get("ownerInstructorId") == principal.user_id
+    ]
     exercise_ids = [e["exerciseId"] for e in instructor_exercises]
 
     recent = []
@@ -1092,18 +1351,25 @@ def get_instructor_stats(principal: Principal) -> dict:
         try:
             resp = _t("Attempts").query(
                 IndexName="byExercise",
-                KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(eid))
+                KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(
+                    eid
+                ),
+            )
             for a in resp.get("Items", []):
                 # Look up student name
                 user = _t("Users").get_item(Key={"userId": a["studentId"]}).get("Item")
                 student_name = user.get("displayName", "Student") if user else "Student"
-                recent.append({
-                    "studentName": student_name,
-                    "action": f"submitted Exercise",
-                    "exerciseId": eid,
-                    "score": int(a["scorePercent"]) if a.get("scorePercent") else None,
-                    "createdAt": a.get("createdAt", ""),
-                })
+                recent.append(
+                    {
+                        "studentName": student_name,
+                        "action": f"submitted Exercise",
+                        "exerciseId": eid,
+                        "score": int(a["scorePercent"])
+                        if a.get("scorePercent")
+                        else None,
+                        "createdAt": a.get("createdAt", ""),
+                    }
+                )
         except Exception:
             pass
 
@@ -1127,43 +1393,77 @@ def add_student_to_roster(principal: Principal, body: dict) -> dict:
 
     # Find the student
     users_resp = _t("Users").scan()
-    student = next((u for u in users_resp.get("Items", [])
-                    if u.get("email") == email and u.get("role") == "STUDENT"), None)
+    student = next(
+        (
+            u
+            for u in users_resp.get("Items", [])
+            if u.get("email") == email and u.get("role") == "STUDENT"
+        ),
+        None,
+    )
 
     if not student:
         # Student not registered yet — send invite email
         # Get instructor name for the email
-        instructor = next((u for u in users_resp.get("Items", [])
-                           if u.get("userId") == principal.user_id), None)
-        instructor_name = instructor.get("displayName", "Your instructor") if instructor else "Your instructor"
+        instructor = next(
+            (
+                u
+                for u in users_resp.get("Items", [])
+                if u.get("userId") == principal.user_id
+            ),
+            None,
+        )
+        instructor_name = (
+            instructor.get("displayName", "Your instructor")
+            if instructor
+            else "Your instructor"
+        )
 
         # Store a pending enrollment so when the student registers, they auto-enroll
-        _t("Enrollments").put_item(Item={
-            "instructorId": principal.user_id,
-            "studentId": f"pending:{email}",
-            "pendingEmail": email,
-            "source": "INVITE",
-        })
+        _t("Enrollments").put_item(
+            Item={
+                "instructorId": principal.user_id,
+                "studentId": f"pending:{email}",
+                "pendingEmail": email,
+                "source": "INVITE",
+            }
+        )
 
         # Send invite email via SES
         instructor_email = instructor.get("email", "") if instructor else ""
-        _send_invite_email(to_email=email, instructor_name=instructor_name, instructor_email=instructor_email)
+        _send_invite_email(
+            to_email=email,
+            instructor_name=instructor_name,
+            instructor_email=instructor_email,
+        )
 
-        return {"ok": True, "invited": True, "email": email,
-                "message": f"Invite sent to {email}. They'll be enrolled automatically when they register."}
+        return {
+            "ok": True,
+            "invited": True,
+            "email": email,
+            "message": f"Invite sent to {email}. They'll be enrolled automatically when they register.",
+        }
 
     # Student exists — create enrollment
-    _t("Enrollments").put_item(Item={
-        "instructorId": principal.user_id,
+    _t("Enrollments").put_item(
+        Item={
+            "instructorId": principal.user_id,
+            "studentId": student["userId"],
+            "source": "ROSTER",
+        }
+    )
+    return {
+        "ok": True,
         "studentId": student["userId"],
-        "source": "ROSTER",
-    })
-    return {"ok": True, "studentId": student["userId"], "name": student.get("displayName", "")}
+        "name": student.get("displayName", ""),
+    }
 
 
-def _send_invite_email(to_email: str, instructor_name: str, instructor_email: str = "") -> None:
+def _send_invite_email(
+    to_email: str, instructor_name: str, instructor_email: str = ""
+) -> None:
     """Send a registration invite email via Amazon SES.
-    
+
     Sends from noreply@wpcarey.asu.edu (DKIM verified domain) with instructor's name
     as display name. Instructor is set as Reply-To so students can respond to them.
     """
@@ -1246,7 +1546,9 @@ def delete_exercise(principal: Principal, exercise_id: str) -> dict:
 def remove_from_roster(principal: Principal, student_id: str) -> dict:
     """Remove a student from this instructor's roster."""
     _require_role(principal, Role.INSTRUCTOR)
-    _t("Enrollments").delete_item(Key={"instructorId": principal.user_id, "studentId": student_id})
+    _t("Enrollments").delete_item(
+        Key={"instructorId": principal.user_id, "studentId": student_id}
+    )
     return {"ok": True, "studentId": student_id}
 
 
@@ -1256,12 +1558,14 @@ def create_join_code_endpoint(principal: Principal) -> dict:
     code = uuid.uuid4().hex[:8].upper()
     # Format as ASU-XXXX style
     formatted_code = f"ASU-{code[:4]}"
-    _t("JoinCodes").put_item(Item={
-        "code": formatted_code,
-        "instructorId": principal.user_id,
-        "status": "Active",
-        "createdAt": _now(),
-    })
+    _t("JoinCodes").put_item(
+        Item={
+            "code": formatted_code,
+            "instructorId": principal.user_id,
+            "status": "Active",
+            "createdAt": _now(),
+        }
+    )
     return {"code": formatted_code}
 
 
@@ -1275,7 +1579,10 @@ def get_exercise_results(principal: Principal, exercise_id: str) -> dict:
     # Get all attempts for this exercise
     resp = _t("Attempts").query(
         IndexName="byExercise",
-        KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(exercise_id))
+        KeyConditionExpression=boto3.dynamodb.conditions.Key("exerciseId").eq(
+            exercise_id
+        ),
+    )
     all_attempts = resp.get("Items", [])
 
     # Group by student
@@ -1298,31 +1605,49 @@ def get_exercise_results(principal: Principal, exercise_id: str) -> dict:
         attempt2 = attempts[1] if len(attempts) >= 2 else None
         has_final = any(a.get("isFinal") in (True, 1) for a in attempts)
 
-        score1 = int(attempt1["scorePercent"]) if attempt1 and attempt1.get("scorePercent") else None
-        score2 = int(attempt2["scorePercent"]) if attempt2 and attempt2.get("scorePercent") else None
+        score1 = (
+            int(attempt1["scorePercent"])
+            if attempt1 and attempt1.get("scorePercent")
+            else None
+        )
+        score2 = (
+            int(attempt2["scorePercent"])
+            if attempt2 and attempt2.get("scorePercent")
+            else None
+        )
 
         change = "none"
         if score1 is not None and score2 is not None:
             change = "up" if score2 > score1 else "down" if score2 < score1 else "none"
 
-        status = "Completed" if has_final else "Submitted" if attempts else "Not Started"
+        status = (
+            "Completed" if has_final else "Submitted" if attempts else "Not Started"
+        )
 
-        results.append({
-            "studentId": sid,
-            "name": name,
-            "email": email,
-            "attempt1": score1,
-            "attempt2": score2,
-            "change": change,
-            "status": status,
-        })
+        results.append(
+            {
+                "studentId": sid,
+                "name": name,
+                "email": email,
+                "attempt1": score1,
+                "attempt2": score2,
+                "change": change,
+                "status": status,
+            }
+        )
 
     # Stats
-    scores = [r["attempt2"] or r["attempt1"] for r in results if (r["attempt2"] or r["attempt1"]) is not None]
+    scores = [
+        r["attempt2"] or r["attempt1"]
+        for r in results
+        if (r["attempt2"] or r["attempt1"]) is not None
+    ]
     class_avg = round(sum(scores) / len(scores)) if scores else 0
     highest = max(scores) if scores else 0
     lowest = min(scores) if scores else 0
-    submitted_count = len([r for r in results if r["status"] in ("Completed", "Submitted")])
+    submitted_count = len(
+        [r for r in results if r["status"] in ("Completed", "Submitted")]
+    )
 
     return {
         "results": results,
@@ -1332,13 +1657,16 @@ def get_exercise_results(principal: Principal, exercise_id: str) -> dict:
             "lowest": lowest,
             "submitted": submitted_count,
             "total": len(results),
-        }
+        },
     }
 
 
 # ---- Dispatcher ------------------------------------------------------------
 
-def dispatch(method: str, path: str, body: dict, principal: Principal | None) -> tuple[int, dict]:
+
+def dispatch(
+    method: str, path: str, body: dict, principal: Principal | None
+) -> tuple[int, dict]:
     seg = [s for s in path.split("/") if s]
 
     # Public auth routes
@@ -1358,7 +1686,12 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
     if method == "GET" and seg == ["me"]:
         user = _t("Users").get_item(Key={"userId": principal.user_id}).get("Item")
         display_name = user.get("displayName", "") if user else ""
-        return 200, {"userId": principal.user_id, "role": principal.role.value, "displayName": display_name, "email": user.get("email", "") if user else ""}
+        return 200, {
+            "userId": principal.user_id,
+            "role": principal.role.value,
+            "displayName": display_name,
+            "email": user.get("email", "") if user else "",
+        }
 
     if method == "GET" and seg == ["exercises"]:
         return 200, list_exercises(principal)
@@ -1380,33 +1713,83 @@ def dispatch(method: str, path: str, body: dict, principal: Principal | None) ->
         return 200, get_configuration(principal, seg[1])
     if method == "PUT" and len(seg) == 2 and seg[0] == "configurations":
         return 200, update_configuration(principal, seg[1], body)
-    if method == "POST" and len(seg) == 3 and seg[0] == "configurations" and seg[2] == "apply":
+    if (
+        method == "POST"
+        and len(seg) == 3
+        and seg[0] == "configurations"
+        and seg[2] == "apply"
+    ):
         return 200, apply_configuration(principal, seg[1])
 
     if method == "GET" and len(seg) == 2 and seg[0] == "exercises":
         return 200, get_exercise(principal, seg[1])
     if method == "DELETE" and len(seg) == 2 and seg[0] == "exercises":
         return 200, delete_exercise(principal, seg[1])
-    if method == "PUT" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "placements":
+    if (
+        method == "PUT"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "placements"
+    ):
         return 200, save_placements(principal, seg[1], body)
-    if method == "POST" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "submit":
+    if (
+        method == "POST"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "submit"
+    ):
         return 200, submit(principal, seg[1], body)
-    if method == "POST" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "verify":
+    if (
+        method == "POST"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "verify"
+    ):
         return 200, verify(principal, seg[1], body)
-    if method == "POST" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "resubmit":
+    if (
+        method == "POST"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "resubmit"
+    ):
         return 200, resubmit(principal, seg[1], body)
-    if method == "PUT" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "budget-schedule":
+    if (
+        method == "PUT"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "budget-schedule"
+    ):
         return 200, save_budget_schedule(principal, seg[1], body)
-    if method == "GET" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "results":
+    if (
+        method == "GET"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "results"
+    ):
         return 200, class_results(principal, seg[1])
-    if method == "GET" and len(seg) == 3 and seg[0] == "exercises" and seg[2] == "detailed-results":
+    if (
+        method == "GET"
+        and len(seg) == 3
+        and seg[0] == "exercises"
+        and seg[2] == "detailed-results"
+    ):
         return 200, get_exercise_results(principal, seg[1])
 
-    if method == "GET" and len(seg) == 3 and seg[0] == "students" and seg[2] == "history":
+    if (
+        method == "GET"
+        and len(seg) == 3
+        and seg[0] == "students"
+        and seg[2] == "history"
+    ):
         return 200, get_history(principal, seg[1])
     if method == "GET" and len(seg) == 2 and seg[0] == "attempts":
         return 200, get_attempt(principal, seg[1])
-    if method == "POST" and len(seg) == 3 and seg[0] == "attempts" and seg[2] == "reflection":
+    if (
+        method == "POST"
+        and len(seg) == 3
+        and seg[0] == "attempts"
+        and seg[2] == "reflection"
+    ):
         return 200, save_reflection(principal, seg[1], body)
 
     raise NotFoundError(f"No route for {method} {path}")
