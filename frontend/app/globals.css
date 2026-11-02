@@ -162,41 +162,83 @@ body {
   width: var(--sidebar-collapsed);
 }
 
-.sidebar.collapsed .sidebar-toggle {
-  right: auto;
-  left: 50%;
-  transform: translateX(-50%);
+/* Toggle sits in its own row so it never overlaps the first nav item. */
+.sidebar-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 8px;
+  height: 32px;
+  align-items: center;
+}
+
+.sidebar.collapsed .sidebar-toggle-row {
+  justify-content: center;
+  padding: 0;
 }
 
 .sidebar-toggle {
-  position: absolute;
-  top: 12px;
-  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.6);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  font-size: 14px;
-  padding: 4px 6px;
-  z-index: 10;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--white);
+}
+
+.sidebar-toggle:focus-visible,
+.sidebar-nav li a:focus-visible {
+  outline: 2px solid var(--asu-gold);
+  outline-offset: -2px;
 }
 
 .sidebar-nav {
   list-style: none;
-  padding: 16px 0;
+  padding: 8px 0;
+  margin: 0;
 }
 
 .sidebar-nav li a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 20px;
+  height: 44px;
+  padding: 0 20px 0 17px;
+  /* 17 + 3px border = 20px visual inset */
   color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  transition: all 0.15s;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
   border-left: 3px solid transparent;
+}
+
+.sidebar-nav li a .nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Collapsed: icon-only rail, icons centred; active state keeps the gold edge. */
+.sidebar.collapsed .sidebar-nav li a {
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.sidebar.collapsed .sidebar-nav li a .nav-label {
+  display: none;
 }
 
 .sidebar-nav li a:hover {
@@ -212,9 +254,23 @@ body {
 }
 
 .sidebar-nav li a .nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   font-size: 18px;
-  width: 20px;
-  text-align: center;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+}
+
+/* In the collapsed rail the gold border would push the icon right; draw it as an inset shadow instead. */
+.sidebar.collapsed .sidebar-nav li a {
+  border-left: none;
+}
+
+.sidebar.collapsed .sidebar-nav li a.active {
+  box-shadow: inset 3px 0 0 var(--asu-gold);
 }
 
 /* Main Content */
@@ -228,8 +284,15 @@ body {
   width: calc(100% - var(--sidebar-width));
 }
 
-.main-content.sidebar-collapsed {
+.main-content {
+  transition: margin-left 0.2s, width 0.2s;
+}
+
+/* Content follows the rail when it collapses (sidebar precedes main-content as a sibling). */
+.main-content.sidebar-collapsed,
+.sidebar.collapsed~.main-content {
   margin-left: var(--sidebar-collapsed);
+  width: calc(100% - var(--sidebar-collapsed));
 }
 
 /* Welcome Banner */
