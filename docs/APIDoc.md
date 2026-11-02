@@ -499,11 +499,11 @@ Placements use this shape: `{ roundId: { cardId: [targetId, ...] } }`.
 
 ## 6) Live Session (WebSocket)
 
-The stack deploys a WebSocket API (`WsApiUrl` output) and a `WsFn` Lambda for live in-class progress. **This feature isn't working yet:**
-- The `/sessions` REST routes the frontend calls aren't wired into `dispatch()`, so they return `404`.
-- `WsFn`'s handler, `src.live_session.ws_handler.handler`, doesn't exist in `backend/src/live_session/`.
+**Live sessions were removed from the product in August 2026**, because sharing an Exercise ID with an enrolled roster already met the classroom need. Some pieces are still around:
+- **Still deployed**: the stack's WebSocket API (`WsApiUrl` output) and `WsFn` Lambda. `WsFn` points at `src.live_session.ws_handler.handler`, which no longer exists.
+- **Still in the code**: `backend/src/live_session/service.py` and the `startSession` / `joinSession` methods in `frontend/src/shared/apiClient.ts`. No page calls them, and `dispatch()` has no `/sessions` routes, so those requests would return `404`.
 
-The session logic lives in `backend/src/live_session/service.py` if you want to finish the feature.
+To bring the feature back, or to remove these leftover resources, see the [Modification Guide](./modificationGuide.md#feature-live-sessions-restore-or-remove).
 
 ---
 

@@ -217,12 +217,19 @@ Because cards can be reused in Round 3, a student who drops a professional into 
 3. Deploy the backend. **Note:** `_ensure_seed_template()` only adds templates that are *missing*. Existing `seed-scenario-*` rows in the `Templates` table aren't updated, so delete those rows, or change the template ID, to pick up your changes.
 4. Exercises that are already published keep their frozen version. Publish a new exercise to use the new content.
 
-### Feature: Finish live sessions
+### Feature: Live sessions (restore or remove)
 
-The WebSocket API, the `Sessions`, `SessionParticipants`, and `WsConnections` tables, and `live_session/service.py` all exist. To finish the feature:
+Live sessions were removed from the product in August 2026. The infrastructure is still deployed: the WebSocket API, `WsFn`, and the `Sessions`, `SessionParticipants`, and `WsConnections` tables. So are `backend/src/live_session/service.py` and the unused `startSession` / `joinSession` client methods.
+
+**To remove the leftovers**:
+1. In `processcanvas-stack.ts`, delete the WebSocket API and stage, `WsFn` and its log group, and the three session tables (and remove those tables from `allTables`). Also delete the `WsApiUrl` output and the `NEXT_PUBLIC_WS_URL` build variable.
+2. Delete `startSession` and `joinSession` from `apiClient.ts`.
+3. Deploy. CloudFormation deletes the resources, including any data in those tables.
+
+**To restore the feature**:
 1. Create `backend/src/live_session/ws_handler.py` with `handler(event, context)` handling `$connect`, `$disconnect`, and `$default`.
-2. Add `/sessions` routes to `dispatch()`. The frontend already calls `POST /sessions` and `POST /sessions/{id}/join`.
-3. Push progress events to the instructor's connection using the `WS_ENDPOINT` environment variable.
+2. Add `/sessions` routes to `dispatch()` that call `live_session/service.py`.
+3. Push progress events to the instructor's connection using the `WS_ENDPOINT` environment variable, and add an instructor page that listens for them.
 
 ---
 

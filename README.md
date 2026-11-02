@@ -10,9 +10,14 @@
 
 | Document | Description |
 |---|---|
-| [Deployment Guide](docs/DEPLOYMENT.md) | Full deploy instructions + one-click CloudShell script |
-| [Architecture](docs/ARCHITECTURE.md) | System design, data model, API overview |
-| [User Guide](docs/USER-GUIDE.md) | How-to for instructors and students |
+| [User Guide](docs/userGuide.md) | Step-by-step guide for instructors and students |
+| [Deployment Guide](docs/deploymentGuide.md) | One-command and manual deployment, updates, troubleshooting |
+| [API Documentation](docs/APIDoc.md) | Every REST endpoint with request and response shapes |
+| [Architecture Deep Dive](docs/architectureDeepDive.md) | Request flow, services, security, design decisions |
+| [Modification Guide](docs/modificationGuide.md) | Where and how to change or extend the app |
+| [Project Closure](docs/projectClosure.md) | Scope, delivery, challenges, and future work |
+
+Earlier documents (`docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md`, `docs/USER-GUIDE.md`) are kept for reference. The guides above replace them.
 
 ---
 

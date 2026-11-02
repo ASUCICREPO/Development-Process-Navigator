@@ -68,7 +68,7 @@ The Lambda saves the attempt (`Attempts`) and the student's state (`StudentExerc
   - Two public routes: `POST /auth/register` and `POST /auth/login`. Everything else goes through `/{proxy+}` (`ANY`) with the Cognito authorizer.
   - Gateway error responses (`401`, `403`, `4XX`, `5XX`) include CORS headers, so the browser shows real auth errors instead of misleading CORS errors.
 
-- **Amazon API Gateway (WebSocket)**: a `prod` stage meant for live session progress. It's deployed, but the feature isn't finished (see [Known Gaps](#known-gaps)).
+- **Amazon API Gateway (WebSocket)**: a `prod` stage left over from the live session feature, which was removed in August 2026. It's still deployed but not used (see [Known Gaps](#known-gaps)).
 
 - **AWS Lambda** (Python 3.12, 128 MB, 29 s timeout):
   - **ApiFn**: handles every REST route as a modular monolith with these packages:
@@ -76,7 +76,7 @@ The Lambda saves the attempt (`Attempts`) and the student's state (`StudentExerc
     - `authoring`: templates, taxonomy, and seed scenarios
     - `exercise`: rounds and scoring
     - `results`: history and class results
-  - **WsFn**: handles the WebSocket `$connect`, `$disconnect`, and `$default` routes. It's configured with handler `src.live_session.ws_handler.handler`, which isn't in the repo yet.
+  - **WsFn**: handles the WebSocket `$connect`, `$disconnect`, and `$default` routes. It's configured with handler `src.live_session.ws_handler.handler`, which was deleted when live sessions were removed, so this function is a leftover.
   - **S3 auto-delete custom resource**: created by CDK to empty the asset bucket when the stack is destroyed.
 
 ### AI/ML Services
@@ -96,9 +96,9 @@ None. Scoring is rule-based and deterministic, driven by the weight matrix from 
   | Exercises | exerciseId | — | — | Published exercises (configId + versionId) |
   | StudentExerciseState | exerciseId | studentId | — | Draft placements, budget/schedule, attempt count, lock |
   | Attempts | studentId | attemptId | byExercise | Scored submissions and round results |
-  | Sessions | sessionId | — | — | Live session records (not used yet) |
-  | SessionParticipants | sessionId | studentId | — | Live session roster (not used yet) |
-  | WsConnections | sessionId | connectionId | byConnection | WebSocket connections (not used yet) |
+  | Sessions | sessionId | — | — | Live session records (unused since the feature was removed) |
+  | SessionParticipants | sessionId | studentId | — | Live session roster (unused) |
+  | WsConnections | sessionId | connectionId | byConnection | WebSocket connections (unused) |
 
 - **Amazon S3**: a private asset bucket (all public access blocked, S3-managed encryption, CORS for GET/PUT/POST). The Lambda has read/write access, but **the current backend doesn't read or write it**. It's reserved for future uploads.
 
@@ -194,7 +194,7 @@ Frontend-only and backend-only redeploys are covered in the [Deployment Guide](.
 | Area | Status |
 |---|---|
 | Password reset | Backend handlers exist, but API Gateway doesn't route `/auth/forgot-password` or `/auth/confirm-reset`, so they return `403` |
-| Live session | WebSocket API and tables are deployed, but `WsFn`'s handler file is missing and the `/sessions` REST routes aren't wired into `dispatch()` |
+| Live session leftovers | Feature removed in August 2026, but the WebSocket API, `WsFn` (whose handler file is gone), and three tables are still deployed. Remove them, or restore the feature ([Modification Guide](./modificationGuide.md#feature-live-sessions-restore-or-remove)) |
 | Amplify auto-build | CDK sets `autoBuild`, but no repository is connected, so pushing doesn't deploy |
 | S3 asset bucket | Provisioned but not used |
 
