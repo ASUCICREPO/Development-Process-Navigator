@@ -113,8 +113,8 @@ npm install
 # First-time only — bootstrap CDK in your account/region
 npx cdk bootstrap --profile <your-aws-profile>
 
-# Deploy all resources
-npx cdk deploy --profile <your-aws-profile> --require-approval never
+# Deploy all resources (the instructor access code is required and never committed)
+npx cdk deploy --profile <your-aws-profile> --context instructorAccessCode=<your-code> --require-approval never
 ```
 
 Note the outputs printed at the end — you'll need `RestApiUrl` and `AmplifyAppId`.
@@ -219,20 +219,15 @@ aws lambda update-function-code \
 
 ## Rotating the Instructor Access Code
 
-1. Edit `infrastructure/lib/processcanvas-stack.ts`:
-   ```typescript
-   INSTRUCTOR_ACCESS_CODE: "MRED-2027",  // ← new value
-   ```
-2. Edit `backend/src/api/app.py`:
-   ```python
-   os.environ.get("INSTRUCTOR_ACCESS_CODE", "MRED-2027")  # ← same value
-   ```
-3. Deploy:
+The code is never stored in the repository. It is supplied at deploy time and set as the Lambda environment variable `INSTRUCTOR_ACCESS_CODE`. If it is missing, `cdk synth`/`cdk deploy` stops with an error, and the backend refuses instructor sign-up rather than falling back to a default.
+
+1. Redeploy with the new code:
    ```bash
-   cd infrastructure
-   cdk deploy --profile <your-profile> --require-approval never
+   INSTRUCTOR_ACCESS_CODE=<new-code> AWS_PROFILE=<your-profile> ./deploy.sh
+   # or, from infrastructure/:
+   cdk deploy --profile <your-profile> --context instructorAccessCode=<new-code> --require-approval never
    ```
-4. Share the new code with faculty privately (email or in-person).
+2. Share the new code with faculty privately (email or in-person).
 
 ---
 

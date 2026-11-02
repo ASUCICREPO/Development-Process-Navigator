@@ -17,8 +17,10 @@ Single-stack, single-region serverless infrastructure.
 ```
 cd infrastructure
 npm install
-npx cdk deploy
+npx cdk deploy --context instructorAccessCode=<your-code>
 ```
+
+The instructor access code is required (synth/deploy fails without it) and must never be committed. You can also set it with the `INSTRUCTOR_ACCESS_CODE` environment variable.
 
 ## Post-deploy
 - Seed the real-estate-development template into the Templates table (seeding task).

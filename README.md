@@ -151,6 +151,7 @@ pytest -q            # 22 tests, all pass
 ```bash
 cd infrastructure
 npm install
+export INSTRUCTOR_ACCESS_CODE=<your-code>   # required; never commit it
 cdk synth            # validate (no deploy)
 cdk deploy --profile <your-profile>
 ```
@@ -179,13 +180,11 @@ cdk deploy --profile <your-profile>
 ## Instructor Access Code
 
 Instructors register with a private access code to prevent unauthorized accounts.  
-The code is set as a Lambda environment variable (`INSTRUCTOR_ACCESS_CODE`) in the CDK stack.
+The code is **not stored in the repository**. It is supplied at deploy time and set as the Lambda environment variable `INSTRUCTOR_ACCESS_CODE`. Deployment stops if it is missing, and the backend has no default.
 
-**To rotate:**
-1. Update `INSTRUCTOR_ACCESS_CODE` in `infrastructure/lib/processcanvas-stack.ts`
-2. Update the fallback in `backend/src/api/app.py`
-3. Run `cdk deploy --profile <your-profile>` from `infrastructure/`
-4. Share the new code privately with faculty
+**To set or rotate:**
+1. Run `INSTRUCTOR_ACCESS_CODE=<new-code> AWS_PROFILE=<your-profile> ./deploy.sh` (or `cdk deploy --context instructorAccessCode=<new-code>` from `infrastructure/`)
+2. Share the new code privately with faculty
 
 ---
 
