@@ -1,4 +1,4 @@
-![ASU AI CIC Logo](./media/project-closure/ASU-AI-CIC-logo.png)
+![ASU AI CIC Logo](./media/ASU_AI_CIC_LOGO.jpeg)
 
 **Project Completion Documentation**
 
@@ -6,7 +6,6 @@ Development Process Navigator
 
 W. P. Carey School of Business — Real Estate Program (MRED), Arizona State University
 
-![Powered by AWS](./media/project-closure/powered-by-aws.png)
 
 **Authors:**
 
@@ -14,7 +13,7 @@ W. P. Carey School of Business — Real Estate Program (MRED), Arizona State Uni
 
 **Project Closure Date:**
 
-**To be confirmed** (draft prepared 1 November 2026)
+September 10 2026
 
 ###
 
@@ -110,13 +109,13 @@ The POC scope called for AI-assisted feedback. The delivered scoring is **determ
 #### **2.2 ASU Build Team** {#22-asu-build-team}
 
 - Sreeram Saravana Prasad – Developer
-- Lahari Shakthi Arun – Developer
+- Lahari Shakthi Arun – UI/UX
 
 *Faculty sponsor and subject-matter lead (Real Estate Program): to be completed by the project team.*
 
 #### **2.3 Project Timeline** {#23-project-timeline}
 
-15-June-26 (Discovery Workshop) – 1-November-26 (latest release)
+15-June-26 (Discovery Workshop) – 10-September-26 (latest release)
 
 #### **2.4 Project Timeline and Sprints** {#24-project-timeline-and-sprints}
 
@@ -129,7 +128,7 @@ Milestones below come from the Discovery Workshop readout and the repository's c
 | **3** | **Iteration 2** | 26-activity template, roster and join codes, instructor access code, role-based access control, Help Center and info icons, architecture diagram | **25-Jun – 2-Jul-26** |
 | **4** | **Iteration 3** | Assign flow with Exercise ID, custom phases, one-command `deploy.sh` (CloudShell-ready), SES email invites with auto-enrollment, first documentation set; live-session feature removed | **22-Jul – 14-Aug-26** |
 | **5** | **Iteration 4** | Redesign to the Instructor Manual model: development-process taxonomy, five scenario templates, five-round board, budget and schedule step, scenario customizer, round-level review page | **2–10-Sep-26** |
-| **6** | **Iteration 5** | Round 3 roles reusable across activities, description pop-ups on every stage and activity, collapsed-sidebar fix, access code moved out of source control, CIC documentation set | **1-Nov-26** |
+| **6** | **Iteration 5** | Round 3 roles reusable across activities, description pop-ups on every stage and activity, access code moved out of source control, CIC documentation set | **1-Nov-26** |
 
 ###
 
