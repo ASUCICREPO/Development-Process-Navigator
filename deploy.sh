@@ -45,9 +45,12 @@ ok()     { echo -e "${GREEN}[  ok  ]${NC} $1"; }
 warn()   { echo -e "${YELLOW}[ warn ]${NC} $1"; }
 fail()   { echo -e "${RED}[ fail ]${NC} $1"; exit 1; }
 
-# AWS CloudShell sets AWS_EXECUTION_ENV=CloudShell.
+# Detect AWS CloudShell (runs as cloudshell-user; also sets AWS_EXECUTION_ENV).
 IN_CLOUDSHELL=0
-[ "${AWS_EXECUTION_ENV:-}" = "CloudShell" ] && IN_CLOUDSHELL=1
+if [ "${AWS_EXECUTION_ENV:-}" = "CloudShell" ] || [ "${USER:-}" = "cloudshell-user" ] \
+   || [ "$HOME" = "/home/cloudshell-user" ]; then
+  IN_CLOUDSHELL=1
+fi
 
 # Free up disk space (important on AWS CloudShell — ~1 GB home quota).
 # Safe: only removes caches and regenerable build artifacts.
