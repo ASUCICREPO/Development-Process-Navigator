@@ -40,7 +40,7 @@ Students work through up to five rounds of cards and a Budget & Schedule step. T
 
 Go to your deployment's URL, which looks like `https://main.<app-id>.amplifyapp.com`.
 
-![Step 1 - Login page](./media/user-guide-login.png)
+![Step 1 - Login page](./media/s1.png)
 
 - Choose **Student** or **Instructor** at the top of the card. The button label changes to match (for example, **Log in as Student**).
 - Use the **Log in** tab if you already have an account, or **Register** to create one.
@@ -69,8 +69,12 @@ Go to your deployment's URL, which looks like `https://main.<app-id>.amplifyapp.
    2. Adjust the reference matrix. Each card gets a weight from 0 to 100 for each target; 100 is the primary answer.
    3. Click **Save Draft** to keep working later, or **Save & Publish Exercise**.
 
+![Step 3 - Customize a Scenario](./media/s3.png)
+
 - Publishing freezes that version. If you edit the scenario later, the exercise students are already working on doesn't change.
-- On the **Dashboard**, click **Assign** on an exercise to see its Exercise ID and how students can open it.
+- On the **Dashboard**, each published exercise has a card with its ID. Click **Assign** to see the Exercise ID and how students can open it.
+
+![Step 3 - Instructor Dashboard](./media/s2.png)
 
 ---
 
@@ -100,6 +104,18 @@ Go to your deployment's URL, which looks like `https://main.<app-id>.amplifyapp.
    | **4 — Match Tasks & Deliverables** | Match each task or deliverable to its activity. |
    | **5 — Developer Decisions** (optional) | Match each go/no-go decision to the activity it follows, or click **Skip to Budget & Schedule**. |
 
+   **Round 1** — drag the stages into order:
+
+   ![Step 5 - Round 1, Sequence the Process](./media/s5.png)
+
+   **Round 2** — drag each activity onto its stage column:
+
+   ![Step 5 - Round 2, Place the Major Activities](./media/s6.png)
+
+   **Round 3** — roles stay in the pool, and the ×N badge counts how many activities each one is placed in:
+
+   ![Step 5 - Round 3, Match the Professionals](./media/s7.png)
+
 4. Click the **ⓘ** on any column header for that stage or activity's description. Hovering shows a quick preview; clicking keeps it open until you click **×**, click somewhere else, or press Esc.
 5. To move a card, drag it to another column. To remove it, click **×** on the card or drag it back to the pool.
 6. Click **Next →** once every card in the round is placed (optional rounds can be skipped). **← Back** returns to an earlier round, and **Save Draft** saves your progress.
@@ -116,6 +132,8 @@ Go to your deployment's URL, which looks like `https://main.<app-id>.amplifyapp.
    - A **Reflection** prompt about your weakest match.
 4. Click **Revise & Resubmit** to adjust your placements, then **Resubmit (final)**. Your second submission is final and locks the exercise.
 5. Later, open **My History** to see every attempt with its score, status, and date. Each attempt's detail view shows every card, where you placed it, and the best answer. **My Scores** shows your average score, personal best, and number of exercises completed.
+
+![Step 6 - Attempt review with round breakdown](./media/s4.png)
 
 ---
 

@@ -4,7 +4,7 @@
 
 Development Process Navigator
 
-W. P. Carey School of Business — Real Estate Program (MRED), Arizona State University
+W. P. Carey School of Business — Real Estate Program, Arizona State University
 
 
 **Authors:**
@@ -100,18 +100,15 @@ The POC scope called for AI-assisted feedback. The delivered scoring is **determ
 
 #### **2.1 AWS Leads** {#21-aws-leads}
 
-*To be completed by the project team.*
-
-- *Name* – Solution Architect
-- *Name* – Digital Innovation Lead
-- *Name* – Project Manager
+- Arun Arunachalam – Solution Architect
+- Colleen Schwab – Digital Innovation Lead
+- Rachel Hayden – Project Manager
 
 #### **2.2 ASU Build Team** {#22-asu-build-team}
 
-- Sreeram Saravana Prasad – Developer
+- Sreeram Saravana Prasad – Full-Stack Developer
 - Lahari Shakthi Arun – UI/UX
 
-*Faculty sponsor and subject-matter lead (Real Estate Program): to be completed by the project team.*
 
 #### **2.3 Project Timeline** {#23-project-timeline}
 
@@ -163,8 +160,8 @@ From the Discovery Workshop readout. The status of each item is shown.
 | Student workflows: participation, draft saving, submission and revision, progress tracking, guided reflection | ✅ Delivered |
 | Simulation: multi-phase organization, activity placement, role mapping, budget and schedule, process visualization | ✅ Delivered |
 | Classroom: individual participation, historical tracking, assessment support | ✅ Delivered (roster, results, CSV export) |
-| Classroom: live classroom support | ⚠️ Prototyped, then removed (the Exercise ID and roster already met the need); team participation not built |
-| AI-supported validation, guidance, feedback, and progress analysis | ⚠️ Replaced by deterministic weighted scoring and reflection prompts; AI feedback deferred |
+| Classroom: live classroom support | Prototyped, then removed (the Exercise ID and roster already met the need) |
+| AI-supported validation, guidance, feedback, and progress analysis | Replaced by deterministic weighted scoring and reflection prompts; AI feedback deferred |
 | Serverless cloud deployment; instructor and student web applications | ✅ Delivered |
 
 ##### **Out of Scope**
@@ -202,7 +199,6 @@ From the Discovery Workshop readout. The status of each item is shown.
 
 ---
 
-![UI/UX Design Process](./media/project-closure/UI-UX-design-process.png)
 
 #### **Who are the users of this application?**
 
@@ -220,10 +216,40 @@ How might we turn a valued, hands-on card exercise into a scalable digital exper
 
 #### **User Interface**
 
-![Login page](./media/user-guide-login.png)
-> Role-aware sign-in. Students and instructors register separately, and instructor accounts need an access code.
+**1. Sign-in**
 
-*Additional screenshots to add (from a signed-in session): student dashboard, a Round 3 board showing a professional placed in several activities with the ⓘ description pop-up, the results screen, the instructor scenario customizer, and the class results table.*
+![Login page](./media/s1.png)
+> Students and instructors sign in from the same page by choosing their role. Instructor accounts need an access code to register.
+
+**2. Instructor Dashboard**
+
+![Instructor Dashboard](./media/s2.png)
+> Shows active students, exercises created, and recent submissions. Each published scenario card shows its Exercise ID, with **Edit** and **Assign** buttons.
+
+**3. Customize a Scenario**
+
+![Customize a Scenario](./media/s3.png)
+> Instructors copy a scenario and adjust its reference matrix for each round (R1–R5). Each cell is a 0–100 weight: 100 is the primary answer, lower values give partial credit, and 0 gives none.
+
+**4. Student attempt review**
+
+![Attempt review with round breakdown](./media/s4.png)
+> After submitting, students see their overall score and a breakdown for each round. For the process sequence, this shows each card's position next to the correct one.
+
+**5. Round 1: Sequence the Process**
+
+![Round 1 - Sequence the Process](./media/s5.png)
+> Students drag the eight process stages into order. The header tracks progress through the five rounds and the Budget & Schedule step ($).
+
+**6. Round 2: Place the Major Activities**
+
+![Round 2 - Place the Major Activities](./media/s6.png)
+> Activities are dragged from the pool onto process stage columns. The ⓘ on each column opens that stage's description.
+
+**7. Round 3: Match the Professionals**
+
+![Round 3 - Match the Professionals](./media/s7.png)
+> Professional cards stay in the pool so a role can be used in every activity it contributes to. The ×N badge counts how many activities each card has been placed in.
 
 ####
 
