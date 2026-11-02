@@ -151,8 +151,15 @@ chmod +x deploy.sh
 AWS_PROFILE=<your-profile> ./deploy.sh
 ```
 
-The script asks for the instructor access code (input is hidden). You can also pass it as `INSTRUCTOR_ACCESS_CODE=<code>`. The script then:
-1. Checks the prerequisites and your AWS credentials, and clears caches (avoids running out of disk space in CloudShell).
+The script looks for the instructor access code in this order:
+- **Environment variable**: `INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh`
+- **Private file**: `~/.dpn_instructor_access_code`, outside the repo and readable only by you
+- **Prompt**: if neither is set, it asks once (input is hidden) and saves your answer to that file, so later deploys don't ask again.
+
+The code is never written to the repository. Instructors enter it only once, when they register; logging in doesn't need it.
+
+The script then:
+1. Checks the prerequisites and your AWS credentials. In CloudShell it also clears npm and home-folder caches to avoid running out of disk space; on other machines it leaves your caches alone.
 2. Bootstraps CDK and deploys `ProcessCanvasStack`: Cognito, 12 DynamoDB tables, two Lambdas, the REST and WebSocket APIs, S3, SES, and Amplify.
 3. Sets `APP_URL` on the API Lambda.
 4. Builds the frontend with the stack outputs and uploads it to Amplify.

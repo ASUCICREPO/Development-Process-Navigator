@@ -6,7 +6,8 @@
 #   ./deploy.sh                     # deploy to default AWS profile / us-east-1
 #   AWS_PROFILE=myprofile ./deploy.sh
 #   AWS_REGION=us-west-2 ./deploy.sh
-#   INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh   # otherwise you are prompted for it
+#   INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh   # or read from ~/.dpn_instructor_access_code,
+#                                               # or asked once and saved there
 #
 # Works in AWS CloudShell (no local tooling needed) or any machine with:
 #   - AWS CLI v2
@@ -21,6 +22,10 @@
 set -euo pipefail
 
 # ---- Configuration ----------------------------------------------------------
+# Absolute repo root, resolved once (the script cd's into subfolders later, so a
+# relative "$(dirname "$0")" would point at the wrong place after the first cd).
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
 PROFILE="${AWS_PROFILE:-}"
 REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="ProcessCanvasStack"
@@ -40,14 +45,21 @@ ok()     { echo -e "${GREEN}[  ok  ]${NC} $1"; }
 warn()   { echo -e "${YELLOW}[ warn ]${NC} $1"; }
 fail()   { echo -e "${RED}[ fail ]${NC} $1"; exit 1; }
 
+# AWS CloudShell sets AWS_EXECUTION_ENV=CloudShell.
+IN_CLOUDSHELL=0
+[ "${AWS_EXECUTION_ENV:-}" = "CloudShell" ] && IN_CLOUDSHELL=1
+
 # Free up disk space (important on AWS CloudShell — ~1 GB home quota).
 # Safe: only removes caches and regenerable build artifacts.
 free_space() {
   local phase="${1:-}"
   log "Reclaiming disk space${phase:+ ($phase)}..."
-  ROOT="$(cd "$(dirname "$0")" && pwd)"
-  npm cache clean --force >/dev/null 2>&1 || true
-  rm -rf "$HOME/.npm/_cacache" >/dev/null 2>&1 || true
+  # Home-directory caches are only cleared in CloudShell; on a laptop they may
+  # hold unrelated tools' data (pip, models, etc.), so leave them alone there.
+  if [ "$IN_CLOUDSHELL" = "1" ]; then
+    npm cache clean --force >/dev/null 2>&1 || true
+    rm -rf "$HOME/.npm/_cacache" >/dev/null 2>&1 || true
+  fi
   rm -rf "$ROOT/frontend/.next" "$ROOT/frontend/out" >/dev/null 2>&1 || true
   rm -rf "$ROOT/infrastructure/cdk.out" >/dev/null 2>&1 || true
   if [ "$phase" = "pre-frontend" ]; then
@@ -57,7 +69,7 @@ free_space() {
   if [ "$phase" = "start" ]; then
     # Stale deps get reinstalled by this script; clearing them frees space now.
     rm -rf "$ROOT/frontend/node_modules" "$ROOT/infrastructure/node_modules" >/dev/null 2>&1 || true
-    rm -rf "$HOME/.cache"/* >/dev/null 2>&1 || true
+    [ "$IN_CLOUDSHELL" = "1" ] && rm -rf "$HOME/.cache"/* >/dev/null 2>&1 || true
   fi
   df -h "$HOME" 2>/dev/null | awk 'NR==2{print "         disk: "$4" free of "$2" ("$5" used)"}' || true
 }
@@ -82,15 +94,28 @@ AWS_ACCOUNT=$(aws sts get-caller-identity $PROFILE_FLAG --query Account --output
 ok "AWS account: $AWS_ACCOUNT | region: $REGION | profile: ${PROFILE:-default}"
 
 # ---- Instructor access code (never stored in the repo) -----------------------
-# Read from INSTRUCTOR_ACCESS_CODE, or prompt (hidden input) when run interactively.
+# Lookup order:
+#   1. INSTRUCTOR_ACCESS_CODE environment variable
+#   2. Private file outside the repo (default ~/.dpn_instructor_access_code)
+#   3. Hidden prompt when run interactively; the answer is saved to that file
+#      (owner-only permissions) so later deploys don't ask again.
+CODE_FILE="${INSTRUCTOR_ACCESS_CODE_FILE:-$HOME/.dpn_instructor_access_code}"
+if [ -z "${INSTRUCTOR_ACCESS_CODE:-}" ] && [ -s "$CODE_FILE" ]; then
+  INSTRUCTOR_ACCESS_CODE="$(head -n 1 "$CODE_FILE" | tr -d '[:space:]')"
+  CODE_SOURCE="$CODE_FILE"
+fi
 if [ -z "${INSTRUCTOR_ACCESS_CODE:-}" ] && [ -t 0 ]; then
-  read -r -s -p "Instructor access code (instructors enter this to register): " INSTRUCTOR_ACCESS_CODE
+  read -r -s -p "Instructor access code (instructors enter this once, when they register): " INSTRUCTOR_ACCESS_CODE
   echo ""
+  if [ -n "$INSTRUCTOR_ACCESS_CODE" ]; then
+    (umask 077; printf '%s\n' "$INSTRUCTOR_ACCESS_CODE" > "$CODE_FILE")
+    CODE_SOURCE="prompt (saved to $CODE_FILE)"
+  fi
 fi
 [ -n "${INSTRUCTOR_ACCESS_CODE:-}" ] || \
-  fail "Instructor access code required. Run: INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh"
+  fail "Instructor access code required. Run: INSTRUCTOR_ACCESS_CODE=<code> ./deploy.sh (or put it in $CODE_FILE)"
 export INSTRUCTOR_ACCESS_CODE
-ok "Instructor access code provided (not displayed)"
+ok "Instructor access code loaded from ${CODE_SOURCE:-environment} (not displayed)"
 
 # ---- Reclaim disk space up front (prevents ENOSPC on CloudShell) -------------
 free_space "start"
@@ -103,7 +128,7 @@ ok "CDK available via npx"
 
 # ---- Bootstrap CDK (idempotent) ----------------------------------------------
 log "Bootstrapping CDK in $AWS_ACCOUNT/$REGION (safe to re-run)..."
-cd "$(dirname "$0")/infrastructure"
+cd "$ROOT/infrastructure"
 npm install --quiet
 npx aws-cdk@latest bootstrap "aws://$AWS_ACCOUNT/$REGION" $PROFILE_FLAG --quiet || \
   warn "Bootstrap returned non-zero (may already be bootstrapped — continuing)"
@@ -180,7 +205,7 @@ fi
 free_space "pre-frontend"
 
 log "Building Next.js frontend..."
-cd "$(dirname "$0")/frontend"
+cd "$ROOT/frontend"
 
 npm install --quiet
 
@@ -265,8 +290,8 @@ echo -e "  AWS Account  : ${CYAN}${AWS_ACCOUNT}${NC}"
 echo -e "  Region       : ${CYAN}${REGION}${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
-echo "  Instructor Access Code: the value you supplied via INSTRUCTOR_ACCESS_CODE"
-echo "  (To rotate: re-run with INSTRUCTOR_ACCESS_CODE=<new code> ./deploy.sh)"
+echo "  Instructor Access Code: loaded from ${CODE_SOURCE:-environment} (instructors enter it once, at registration)"
+echo "  (To change it: edit $CODE_FILE, or run INSTRUCTOR_ACCESS_CODE=<new code> ./deploy.sh)"
 echo ""
 echo -e "${GREEN}Open the app:${NC} $FRONTEND_URL"
 echo ""
