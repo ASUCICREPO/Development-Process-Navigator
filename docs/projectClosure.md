@@ -391,7 +391,7 @@ The full stack deploys with a single script that works on a laptop or in AWS Clo
 
 **Figma Link (Internal)** - For the currently implemented version - https://www.figma.com/make/57IwG1mqzyGLHA3xM4dQuR/Development--Process-Navigator?t=yfVfW08vWwJx9C8E-1
 
-**Project Demo Recording** - *to be added by the project team*
+**Project Demo Recording** - https://drive.google.com/file/d/1eDLCrONHJzUO03uNjQVqwqMlDjwaaliU/view?usp=drive_link
 
 **Drive Link** - https://drive.google.com/drive/u/0/folders/1zD0X_Z7yDC8fFNo8noxhm217WmKHkOsv
 
