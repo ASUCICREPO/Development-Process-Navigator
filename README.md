@@ -4,6 +4,8 @@
 
 **Live App:** https://main.dpg1ppd4e998.amplifyapp.com  
 
+**Project Demo Recording** - https://drive.google.com/file/d/1eDLCrONHJzUO03uNjQVqwqMlDjwaaliU/view?usp=drive_link
+
 ---
 
 ## Quick Links
