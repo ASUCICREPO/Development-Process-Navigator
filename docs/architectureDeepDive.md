@@ -258,7 +258,7 @@ Pure functions with no I/O are easy to test (`backend/tests/test_scoring.py`, `t
 
 **Consequences**:
 - **Positive**: fair partial credit, auditable results, answers stay hidden.
-- **Negative**: because extra placements cost nothing, placing a card everywhere can still earn full marks. This matters most in Round 3, where professionals can be reused across activities.
+- **Negative**: because extra placements cost nothing, placing a card everywhere can still earn full marks. This matters most now that cards can be reused across columns in Rounds 2–5.
 - **Neutral**: changing the scoring means changing the weights in `taxonomy.py` or a configuration's mappings.
 
 **Related Decisions**: Decision 4

@@ -249,7 +249,7 @@ How might we turn a valued, hands-on card exercise into a scalable digital exper
 **7. Round 3: Match the Professionals**
 
 ![Round 3 - Match the Professionals](./media/s7.png)
-> Professional cards stay in the pool so a role can be used in every activity it contributes to. The ×N badge counts how many activities each card has been placed in.
+> Cards stay in the pool so a role can be used in every activity it contributes to. The ×N badge counts how many activities each card has been placed in. The same applies to Rounds 2, 4, and 5.
 
 ####
 
@@ -305,7 +305,7 @@ The application is fully serverless and defined in one AWS CDK stack:
 #### **4.4 Key Features Implementation** {#44-key-features-implementation}
 
 ##### **Feature 1: Multi-round card sort based on the Instructor Manual**
-The program's taxonomy is encoded in `taxonomy.py`: 8 process stages, 15 major activities, about 30 professionals, tasks and deliverables, and developer decisions, each with weights for every activity. Five scenario templates (`seed_templates.py`) scale or remove activities to fit each development type. Round 1 is drag-to-reorder, and Rounds 2–5 are pool-to-column boards. In Round 3, professional cards stay in the pool so a role can be placed in every activity it contributes to. Every stage and activity column has an ⓘ pop-up with its description.
+The program's taxonomy is encoded in `taxonomy.py`: 8 process stages, 15 major activities, about 30 professionals, tasks and deliverables, and developer decisions, each with weights for every activity. Five scenario templates (`seed_templates.py`) scale or remove activities to fit each development type. Round 1 is drag-to-reorder, and Rounds 2–5 are pool-to-column boards. In Rounds 2–5, cards stay in the pool after placement, so a card (for example a Civil Engineer) can be placed in every column it belongs to. Every stage and activity column has an ⓘ pop-up with its description.
 
 ##### **Feature 2: Weighted, transparent scoring with one resubmission**
 The scoring engine is pure Python with no I/O and is unit-tested.
@@ -345,7 +345,7 @@ The full stack deploys with a single script that works on a laptop or in AWS Clo
 ---
 
 - **Challenge 1: Turning a physical, discussion-driven exercise into digital scoring.** Professional roles overlap on purpose, and many placements are defensible.
-  - **Solution:** A 0–100 weight matrix from the Instructor Manual's reference tables gives partial credit, plus Correct, Partial, and Incorrect feedback and a reflection prompt. Round 3 lets roles go in several activities. *Open item:* because extra placements cost nothing, a student can place a role everywhere and still get full credit (see [Future Scope](#6-future-scope)).
+  - **Solution:** A 0–100 weight matrix from the Instructor Manual's reference tables gives partial credit, plus Correct, Partial, and Incorrect feedback and a reflection prompt. Rounds 2–5 let a card go in several columns. *Open item:* because extra placements cost nothing, a student can place a card everywhere and still get full credit (see [Future Scope](#6-future-scope)).
 
 - **Challenge 2: Mid-project redesign of the exercise model.** The first version was a single sort of 26 activities into phases. Faculty feedback pointed toward the manual's multi-round structure.
   - **Solution:** The team rebuilt the exercise on a generic card-to-target scoring core, a new taxonomy, and five scenario templates. Earlier single-sort exercises stayed readable.
@@ -368,7 +368,7 @@ The full stack deploys with a single script that works on a laptop or in AWS Clo
 
 ---
 
-* **Scoring refinement:** penalize placements that have no weight, especially in Round 3, so that placing a role everywhere doesn't earn full credit.
+* **Scoring refinement:** penalize placements that have no weight, especially now that cards can be reused in Rounds 2–5, so that placing a card everywhere doesn't earn full credit.
 * **AI-assisted feedback (Amazon Bedrock):** generate explanations for weak placements and respond to student reflections, while keeping the score itself deterministic.
 * **Password reset:** the frontend flow and backend handlers exist. Add the two public API Gateway routes to turn it on.
 * **Team participation and live classroom mode:** shared boards for groups and a live progress view for instructors. The WebSocket API and tables are still provisioned and can be reused or removed.

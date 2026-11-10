@@ -26,7 +26,7 @@ Students work through up to five rounds of cards and a Budget & Schedule step. T
   - Sequence the 8 process stages.
   - Place the major activities onto stages.
   - Match professionals, tasks/deliverables, and developer decisions to activities.
-  - Professionals can go in more than one activity.
+  - In Rounds 2–5, the same card can be placed in more than one column.
 - **Help on every column**: an ⓘ icon on each stage and activity column explains what it covers.
 - **Partial credit**: overlapping answers earn partial credit, and a reflection prompt points to your weakest placement.
 - **Two attempts**: submit, review the feedback, then make one final resubmission.
@@ -99,10 +99,12 @@ Go to your deployment's URL, which looks like `https://main.<app-id>.amplifyapp.
    | Round | What you do |
    |---|---|
    | **1 — Sequence the Process** | Drag the 8 stage cards into order. Drop a card onto another card to swap positions. Each card is scored by how close it is to its correct position. |
-   | **2 — Place the Major Activities** | Drag each activity from the left pool into the stage column where it mainly belongs. |
-   | **3 — Match the Professionals** | Drag each professional into every activity they contribute to. **Cards stay in the pool**, so you can use the same role (for example, Civil Engineer) in several activities. A **×N** badge shows how many activities a card is in. |
-   | **4 — Match Tasks & Deliverables** | Match each task or deliverable to its activity. |
+   | **2 — Place the Major Activities** | Drag each activity from the left pool into the stage column where it mainly belongs. An activity can go in more than one stage. |
+   | **3 — Match the Professionals** | Drag each professional into every activity they contribute to. For example, a Civil Engineer can go in several activities. |
+   | **4 — Match Tasks & Deliverables** | Match each task or deliverable to its activity, or to several. |
    | **5 — Developer Decisions** (optional) | Match each go/no-go decision to the activity it follows, or click **Skip to Budget & Schedule**. |
+
+   In Rounds 2–5, **cards stay in the pool** after you place them, so you can drag the same card into as many columns as it belongs to. A **×N** badge shows how many columns a card is in. Round 1 is different: each stage has exactly one position.
 
    **Round 1** — drag the stages into order:
 
@@ -112,7 +114,7 @@ Go to your deployment's URL, which looks like `https://main.<app-id>.amplifyapp.
 
    ![Step 5 - Round 2, Place the Major Activities](./media/s6.png)
 
-   **Round 3** — roles stay in the pool, and the ×N badge counts how many activities each one is placed in:
+   **Round 3** — cards stay in the pool, and the ×N badge counts how many activities each one is placed in (this works the same way in Rounds 2, 4, and 5):
 
    ![Step 5 - Round 3, Match the Professionals](./media/s7.png)
 
@@ -174,7 +176,7 @@ The instructor wants to stress a different set of answers than the manual's defa
 ## Tips and Best Practices
 
 - **Use the ⓘ icons**: in Rounds 2–5, each column's description is the quickest way to decide where a card belongs.
-- **Use roles more than once**: in Round 3, real projects overlap. A Civil Engineer contributes to design, entitlements, and construction, so place each professional everywhere they actually contribute.
+- **Use cards more than once**: in Rounds 2–5, real projects overlap. A Civil Engineer contributes to design, entitlements, and construction, so place each card everywhere it actually belongs.
 - **Save often**: **Save Draft** keeps your placements if you close the tab, and they load again when you return.
 - **Read your feedback before resubmitting**: you only get one resubmission. Use the breakdown and reflection prompt to focus your changes.
 - **Instructors**: enroll students *before* sharing the exercise, so it shows up on their dashboard without needing the ID.

@@ -101,7 +101,7 @@ Many components also use inline style objects (a `styles` record at the bottom o
   - `RoundStage` renders the pool and the target columns.
   - `SequenceStage` renders Round 1.
   - `ResultsScreen` and `BudgetScheduleStep` are the last two screens.
-- **Reusable cards**: `REUSABLE_CARD_TYPES` (currently `PROFESSIONAL`) decides which rounds keep cards in the pool after placement. To let tasks be reused too, add `"TASK_DELIVERABLE"`.
+- **Reusable cards**: `isReusableRound()` decides which rounds keep cards in the pool after placement. It is currently true for every round except the ordering round (`SEQUENCE_ORDER`), so Rounds 2–5 allow one card in several columns. To make a round single-placement again, return `false` for it (for example, check `round.cardType`).
 - **Column help text**: comes from `exercise.stages[].description` and `exercise.activities[].description`, rendered with `<InfoIcon tooltip title color />`.
 - **Sidebar**: both roles use `src/shared/SidebarBase.tsx`. The collapsed state is saved in `localStorage` (`pc_sidebarCollapsed`).
 
@@ -190,9 +190,9 @@ The login page already has a **Forgot Password?** flow, and `forgot_password()` 
 3. Check that the reset email arrives. Users are created with `email_verified=true`, so Cognito sends the code with its default email sender. That sender has a low daily limit, so set up SES on the User Pool before you rely on it for a whole class.
 4. Deploy, then try the full reset flow from the login page.
 
-### Feature: Penalize wrong placements in Round 3
+### Feature: Penalize wrong placements (Rounds 2–5)
 
-Because cards can be reused in Round 3, a student who drops a professional into every activity still gets full credit. Credit is capped at the card's best weight, and wrong placements cost nothing.
+Because cards can be reused in Rounds 2–5, a student who drops a card into every column still gets full credit. Credit is capped at the card's best weight, and wrong placements cost nothing.
 
 **Files to modify**:
 - `backend/src/exercise/scoring/scoring.py` (`_earned_for`)

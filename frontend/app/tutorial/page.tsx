@@ -49,10 +49,10 @@ const instructorGuides: GuideItem[] = [
         description: "What students work through in each exercise.",
         steps: [
             "Round 1 — Sequence the eight process stages (Concept & Acquisition through Operations).",
-            "Round 2 — Place the fifteen major activities onto the process stages.",
+            "Round 2 — Place the fifteen major activities onto the process stages (an activity can go in more than one stage).",
             "Round 3 — Match professional/role cards to the activities they contribute to (multiple matches allowed).",
-            "Round 4 — Match task & deliverable cards to their activities.",
-            "Round 5 (optional) — Match developer go/no-go decision cards to their activities.",
+            "Round 4 — Match task & deliverable cards to their activities (multiple matches allowed).",
+            "Round 5 (optional) — Match developer go/no-go decision cards to their activities (multiple matches allowed).",
             "Budget & Schedule — students then draft cost categories, durations, and predecessors for each activity.",
         ],
     },
@@ -104,8 +104,7 @@ const studentGuides: GuideItem[] = [
         steps: [
             "From the Dashboard, click \"Start\" or \"Continue\" on an assigned exercise.",
             "Round 1: drag the process-stage cards into the order that fits the scenario.",
-            "Round 2: place each major activity onto the process stage where it belongs.",
-            "Rounds 3–5: match professionals, tasks/deliverables, and developer decisions to activities. A card can match more than one activity when that is defensible.",
+            "Rounds 2–5: drag cards from the left pool into the columns. Cards stay in the pool, so the same card can go in as many columns as it belongs to (a ×N badge shows how many). Click the ⓘ on a column for its description.",
             "Use \"Next\" to advance rounds and \"Back\" to revise. Your work is saved as you go.",
             "Final step: fill in the Budget & Schedule table, then click \"Submit Exercise\".",
         ],

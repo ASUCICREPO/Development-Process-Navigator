@@ -312,7 +312,7 @@ aws lambda update-function-code --function-name "$FN" --zip-file fileb:///tmp/la
    - [ ] Go to **My Exercises**, pick a scenario (for example "Scenario B — Master-Planned Community"), customize it if you like, and click **Save & Publish Exercise**. Copy the Exercise ID.
    - [ ] On **Student Roster**, generate a join code.
    - [ ] In a private window, register as a **Student** with that join code. The exercise should appear under **My Exercises**.
-   - [ ] Complete the rounds (in Round 3, a professional can be dropped into several activities) and the Budget & Schedule step, then submit. A score and a round-by-round breakdown should appear.
+   - [ ] Complete the rounds (in Rounds 2–5, the same card can be dropped into several columns) and the Budget & Schedule step, then submit. A score and a round-by-round breakdown should appear.
    - [ ] As the instructor, open **Results & History** and confirm the submission is listed.
 
 3. **Check the logs** if anything fails:

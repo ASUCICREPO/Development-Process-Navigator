@@ -34,12 +34,11 @@ const CARD_TYPE_COLOR: Record<CardType, string> = {
 // A pseudo "step" after the last round for the budget/schedule extension.
 const BUDGET_STEP = "__budget__";
 
-// Card types whose cards can be placed in more than one bucket at once
-// (e.g. a Civil Engineer contributes to several major activities).
-const REUSABLE_CARD_TYPES: ReadonlySet<CardType> = new Set<CardType>(["PROFESSIONAL"]);
-
+// In every drag-to-column round (Rounds 2-5) a card can be placed in more than one
+// bucket at once (e.g. a Civil Engineer contributes to several major activities).
+// The ordering round (SEQUENCE_ORDER) is excluded: each stage has exactly one position.
 function isReusableRound(round: RoundView): boolean {
-  return REUSABLE_CARD_TYPES.has(round.cardType);
+  return round.kind !== "SEQUENCE_ORDER";
 }
 
 export const RoundsBoard: React.FC<Props> = ({ api, exercise }) => {
@@ -437,6 +436,8 @@ const RoundStage: React.FC<{
   const poolCards = reusable ? round.cards : round.cards.filter((c) => placedCount(c.cardId) === 0);
   const unplacedCount = round.cards.filter((c) => placedCount(c.cardId) === 0).length;
   const allPlacedOnce = unplacedCount === 0;
+  const bucketNoun = round.targetKind === "STAGE" ? "stage" : "activity";
+  const bucketNounPlural = round.targetKind === "STAGE" ? "stages" : "activities";
 
   return (
     <div>
@@ -447,7 +448,7 @@ const RoundStage: React.FC<{
         {round.optional && <span style={styles.optionalTag}>Optional round</span>}
         {reusable && !locked && (
           <p style={styles.reuseHint}>
-            Roles can be used more than once. Drag the same card from the pool into every activity it contributes to.
+            Cards can be used more than once. Drag the same card from the pool into every {bucketNoun} it belongs to.
           </p>
         )}
       </div>
@@ -471,7 +472,7 @@ const RoundStage: React.FC<{
           <div style={styles.poolList}>
             {reusable && allPlacedOnce && (
               <p style={styles.allPlacedInline}>
-                Every role is placed at least once. You can move on, or add roles to more activities.
+                Every card is placed at least once. You can move on, or add cards to more {bucketNounPlural}.
               </p>
             )}
             {poolCards.map((c) => {
@@ -493,7 +494,7 @@ const RoundStage: React.FC<{
                     {reusable && uses > 0 && (
                       <span
                         style={{ ...styles.useBadge, color, borderColor: color }}
-                        aria-label={`Placed in ${uses} ${uses === 1 ? "activity" : "activities"}`}
+                        aria-label={`Placed in ${uses} ${uses === 1 ? bucketNoun : bucketNounPlural}`}
                         data-testid={`uses-${c.cardId}`}
                       >
                         ×{uses}

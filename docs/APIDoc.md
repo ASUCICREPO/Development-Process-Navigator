@@ -268,10 +268,10 @@ A published exercise has up to five rounds plus a budget and schedule step:
 | Round | Kind | Cards | Targets | Notes |
 |---|---|---|---|---|
 | r1 | `SEQUENCE_ORDER` | Process stages | Positions `pos-1`…`pos-8` | Order the 8 stages |
-| r2 | `SEQUENCE_PHASES` | Major activities | Stage IDs (`stage-1`…) | One stage each |
+| r2 | `SEQUENCE_PHASES` | Major activities | Stage IDs (`stage-1`…) | A card can go in several stages |
 | r3 | `MATCH_TO_ACTIVITY` | Professionals | Activity IDs (`act-1`…) | A card can go in several activities |
-| r4 | `MATCH_TO_ACTIVITY` | Tasks / deliverables | Activity IDs | |
-| r5 | `MATCH_TO_ACTIVITY` | Developer decisions | Activity IDs | Optional; never blocks submission |
+| r4 | `MATCH_TO_ACTIVITY` | Tasks / deliverables | Activity IDs | A card can go in several activities |
+| r5 | `MATCH_TO_ACTIVITY` | Developer decisions | Activity IDs | Optional; never blocks submission. A card can go in several activities |
 
 Placements use this shape: `{ roundId: { cardId: [targetId, ...] } }`.
 
@@ -606,7 +606,7 @@ The repo also includes `backend/scripts/smoke_test.sh`, which runs register, log
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 2.1 | 2026-11-01 | Round 3 professional cards can be placed in several activities. Instructor access code is now supplied at deploy time. |
+| 2.1 | 2026-11-01 | Cards in Rounds 2–5 can be placed in several columns. Instructor access code is now supplied at deploy time. |
 | 2.0 | 2026 | Multi-round exercise (5 rounds + budget/schedule), five scenario templates, round-scoped placements |
 | 1.0 | 2026-06 | Initial single-sort exercise API |
 
